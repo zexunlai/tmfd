@@ -167,7 +167,7 @@ const mergeReadingItems = (items) => {
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
 // deterministic: it runs in GitHub Actions with Poppler and needs neither a key nor
 // an external service. The PDF remains available as the layout-faithful original.
-const buildReadingEdition = async (sourcePdf) => {
+const buildReadingEdition = async (sourcePdf, language) => {
   const { stdout } = await execFileAsync('pdftohtml', [
     '-xml', '-stdout', '-hidden', '-i', sourcePdf
   ], { maxBuffer: 32 * 1024 * 1024 });
@@ -179,7 +179,7 @@ const buildReadingEdition = async (sourcePdf) => {
   );
   const sections = [];
   const textParts = [];
-  for (const [, pageAttrs, pageBody] of stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)) {
+  for (const [pageIndex, [, pageAttrs, pageBody]] of [...stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)].entries()) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
     const items = [];
     for (const [, textAttrs, rawText] of pageBody.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
@@ -249,7 +249,20 @@ const buildReadingEdition = async (sourcePdf) => {
         const readingOrder = block.rows[0].flatMap((_, index) => mergeReadingItems(
           block.rows.map((row) => row[index]).concat(block.trailing[index])
         ));
-        return `<div class="web-stack">${readingOrder.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('')}</div>`;
+        // The Chinese edition's masthead is often exported as two adjacent PDF
+        // columns. On the web it is one bilingual identity line, not two headings.
+        if (language === 'zh' && pageIndex === 0
+          && readingOrder.length >= 2
+          && readingClass(readingOrder[0]) === 'web-heading'
+          && readingClass(readingOrder[1]) === 'web-heading') {
+          const [first, second, ...rest] = readingOrder;
+          readingOrder.splice(0, readingOrder.length, {
+            ...first,
+            text: `${first.text} ${second.text}`,
+            identity: true
+          }, ...rest);
+        }
+        return `<div class="web-stack">${readingOrder.map((item) => `<div class="web-row${item.identity ? ' web-identity-row' : ''}">${renderReadingItem(item)}</div>`).join('')}</div>`;
       }
       return `<div class="web-row">${renderReadingItem(block.item)}</div>`;
     }).join('\n');
@@ -292,7 +305,7 @@ for (const group of issueGroups.values()) {
     let web = null;
     if (files.pdf) {
       try {
-        const conversion = await buildReadingEdition(path.join(issueFolder, files.pdf));
+        const conversion = await buildReadingEdition(path.join(issueFolder, files.pdf), language);
         sourceText += ` ${conversion.text}`;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
