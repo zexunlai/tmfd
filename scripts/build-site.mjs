@@ -6,12 +6,69 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(root, '_site');
-const publishable = ['index.html', 'assets', 'archive', 'issues', 'read'];
+const publishable = ['index.html', 'assets', 'archive', 'issues', 'legal', 'read'];
 const execFileAsync = promisify(execFile);
 
 const titleFromSlug = (slug) => slug
   .replace(/[-_]+/g, ' ')
   .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const normalizeText = (value) => value
+  .toLocaleLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^\p{L}\p{N}]+/gu, ' ')
+  .trim();
+
+const matches = (source, terms) => terms.filter((term) => source.includes(normalizeText(term))).length;
+
+const categories = [
+  { name: 'Music & Listening', terms: ['music', 'listening', 'sound', 'rhythm', 'arrangement', 'instrumental', 'song', 'album', 'artist', '演奏', '聲音', '節奏', '編曲'] },
+  { name: 'Culture & Scenes', terms: ['culture', 'scene', 'community', 'festival', 'club', 'live', 'audience', '文化', '社群', '現場'] },
+  { name: 'Industry & Economics', terms: ['financial', 'finance', 'revenue', 'royalty', 'platform', 'streaming', 'label', 'market', 'industry', '財務', '版稅', '串流', '產業'] },
+  { name: 'Technology & Discovery', terms: ['algorithm', 'data', 'ai', 'discovery', 'recommendation', 'digital', 'technology', '演算法', '資料', '推薦', '科技'] },
+  { name: 'Criticism & Essays', terms: ['criticism', 'critic', 'review', 'essay', 'aesthetic', 'analysis', '評論', '樂評', '美學', '分析'] }
+];
+
+const tagRules = [
+  { name: 'Typography', terms: ['typography', 'type specimen', 'wordmark', '字體', '排版'] },
+  { name: 'Listening', terms: ['listening', 'listen', '聆聽'] },
+  { name: 'Arrangement', terms: ['arrangement', '編曲'] },
+  { name: 'Performance', terms: ['performance', 'instrumental', '演奏', '器樂'] },
+  { name: 'Publishing', terms: ['publisher', 'publication', 'editor', '出版', '編輯'] },
+  { name: 'Artists', terms: ['artist', 'musician', 'band', 'singer', '音樂人', '樂團', '歌手'] },
+  { name: 'Albums', terms: ['album', 'record', 'release', '專輯', '發行'] },
+  { name: 'Live Music', terms: ['festival', 'concert', 'live', 'tour', '現場', '音樂節', '巡演'] },
+  { name: 'Streaming', terms: ['streaming', 'playlist', 'platform', '串流', '播放清單'] },
+  { name: 'Music Business', terms: ['financial', 'revenue', 'royalty', 'label', 'finance', '財務', '版稅', '唱片公司'] },
+  { name: 'Technology', terms: ['algorithm', 'data', 'ai', 'digital', 'technology', '演算法', '資料', '科技'] },
+  { name: 'Criticism', terms: ['criticism', 'review', 'essay', '評論', '樂評'] }
+];
+
+const issueMetadata = (title, sourceText) => {
+  const source = normalizeText(`${title} ${sourceText}`);
+  const rankedCategories = categories
+    .map((category) => ({ ...category, score: matches(source, category.terms) }))
+    .sort((a, b) => b.score - a.score);
+  const category = rankedCategories[0]?.score ? rankedCategories[0].name : 'Music & Culture';
+  const tags = tagRules
+    .map((tag) => ({ ...tag, score: matches(source, tag.terms) }))
+    .filter((tag) => tag.score)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, 5)
+    .map((tag) => tag.name);
+  if (!tags.length) tags.push('Independent Music');
+
+  const sentences = sourceText
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?。！？])\s+/u)
+    .map((sentence) => sentence.trim());
+  const excerpt = sentences
+    .filter((sentence) => sentence.length >= 35 && sentence.length <= 230)
+    .find((sentence) => !/(tmfd|type proof|not approved|type specimen)/i.test(sentence))
+    || `A TMFD issue about ${category.toLowerCase()}.`;
+  return { category, tags, excerpt };
+};
 
 const formatDate = (date) => new Intl.DateTimeFormat('en', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
@@ -86,6 +143,7 @@ const buildReadingEdition = async (sourcePdf) => {
     ])
   );
   const sections = [];
+  const textParts = [];
   for (const [, pageAttrs, pageBody] of stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
     const items = [];
@@ -93,6 +151,7 @@ const buildReadingEdition = async (sourcePdf) => {
       const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
       const top = Number(attribute(textAttrs, 'top'));
       if (!text || !Number.isFinite(top) || top < 95 || top > pageHeight * 0.91) continue;
+      textParts.push(text);
       items.push({
         text,
         top,
@@ -153,7 +212,10 @@ const buildReadingEdition = async (sourcePdf) => {
     }).join('\n');
     sections.push(`<section class="web-section">${content}</section>`);
   }
-  return sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null;
+  return {
+    edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,
+    text: textParts.join(' ')
+  };
 };
 
 await rm(destination, { recursive: true, force: true });
@@ -180,20 +242,24 @@ for (const stem of stems) {
   const hasHtml = filenames.includes(`${stem}.html`);
   const hasPdf = filenames.includes(`${stem}.pdf`);
   let web = null;
+  let sourceText = titleFromSlug(slug);
 
   if (hasPdf) {
     try {
-      const edition = await buildReadingEdition(path.join(issueFolder, `${stem}.pdf`));
-      if (edition) {
+      const conversion = await buildReadingEdition(path.join(issueFolder, `${stem}.pdf`));
+      sourceText += ` ${conversion.text}`;
+      if (conversion.edition) {
         const folder = path.join(destination, 'reader-content');
         await mkdir(folder, { recursive: true });
-        await writeFile(path.join(folder, `${stem}.html`), edition);
+        await writeFile(path.join(folder, `${stem}.html`), conversion.edition);
         web = `reader-content/${stem}.html`;
       }
     } catch (error) {
       console.warn(`Could not make a responsive reading edition for ${stem}: ${error.message}`);
     }
   }
+
+  const metadata = issueMetadata(titleFromSlug(slug), sourceText);
 
   issues.push({
     id: stem,
@@ -202,7 +268,8 @@ for (const stem of stems) {
     title: titleFromSlug(slug),
     html: hasHtml ? `issues/${stem}.html` : null,
     pdf: hasPdf ? `issues/${stem}.pdf` : null,
-    web
+    web,
+    ...metadata
   });
 }
 issues.sort((a, b) => b.date.localeCompare(a.date));

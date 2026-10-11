@@ -10,7 +10,15 @@
     if (!current) return;
 
     document.getElementById('current-title').textContent = current.title;
-    document.getElementById('current-description').textContent = current.dateLabel;
+    document.getElementById('current-date').textContent = current.dateLabel;
+    document.getElementById('current-description').textContent = current.excerpt || current.category;
+    const tags = document.getElementById('current-tags');
+    tags.replaceChildren(...[current.category, ...(current.tags || [])].map((label) => {
+      const tag = document.createElement('span');
+      tag.className = 'issue-tag';
+      tag.textContent = label;
+      return tag;
+    }));
     const read = document.getElementById('read-current');
     const download = document.getElementById('download-current');
     read.href = `read/?issue=${encodeURIComponent(current.id)}`;
