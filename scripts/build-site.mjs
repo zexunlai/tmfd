@@ -124,7 +124,12 @@ const embeddedPdfImages = async (sourcePdf) => {
 // editorial artwork, so none of them belong in the responsive article body.
 // The ratio check also protects against wide wordmark panels used elsewhere.
 const isWordmarkPanel = ({ width, height, color }) => (
-  color === 'gray' && height > 0 && width / height > 2.5
+  height > 0 && width / height > 2.5 && (color === 'gray' || width / height > 4)
+);
+const isLikelyLayoutAsset = ({ width, height }) => (
+  // A repeated 1024 × 1536 JPEG is the PDF's shared page texture, not an
+  // editorial photograph. It is intentionally absent from the web edition.
+  width === 1024 && height === 1536
 );
 const minimumEditorialImageBytes = 40 * 1024;
 
@@ -140,12 +145,13 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
 
   const mediaByPage = new Map();
   const imageCandidates = (await embeddedPdfImages(sourcePdf)).filter((image) => (
-    image.page !== 1 && !isWordmarkPanel(image)
+    image.page !== 1 && !isWordmarkPanel(image) && !isLikelyLayoutAsset(image)
   ));
   if (imageCandidates.length) {
     const imageBase = path.join(folder, `${language}-image`);
     await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
-    for (const { page, index } of imageCandidates) {
+    for (const candidate of imageCandidates) {
+      const { page, index } = candidate;
       const filename = `${language}-image-${assetNumber(index)}.png`;
       const imagePath = path.join(folder, filename);
       // Very small extracted images are PDF page textures or layout placeholders,
@@ -153,6 +159,7 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
       if ((await stat(imagePath)).size < minimumEditorialImageBytes) continue;
       const image = {
         src: `../issue-assets/${id}/${filename}`,
+        shape: candidate.width / candidate.height > 1.25 ? 'landscape' : candidate.height / candidate.width > 1.25 ? 'portrait' : 'square',
         alt: language === 'zh' ? '原始 PDF 中的編輯圖片' : 'Editorial image from the original PDF'
       };
       if (!mediaByPage.has(page)) mediaByPage.set(page, []);
@@ -171,10 +178,17 @@ const attribute = (source, name) => {
   return match ? match[1] : '';
 };
 
-const readingClass = ({ size, text }) => {
+const readingClass = ({ size, text, role, family = '' }) => {
+  if (role === 'section-label') return 'web-section-label';
+  if (role === 'credit') return 'web-credit';
+  // PDFs retain their production fonts (for example Noto Serif CJK), whereas
+  // the site applies the TMFD web type system. Serif display faces and scale
+  // together identify editorial titles; sans faces at the same scale remain
+  // reading text.
+  const isTitleTypeface = /(?:Georgia|SimSun|NotoSerif)/iu.test(family);
   if (size >= 48) return 'web-display';
-  if (size >= 28) return 'web-heading';
-  if (size >= 20 && text.length <= 70) return 'web-heading';
+  if (size >= 34 || (isTitleTypeface && size >= 28)) return 'web-heading';
+  if (isTitleTypeface && size >= 20 && text.length <= 90) return 'web-heading';
   if (size >= 18) return 'web-lede';
   if (text.length <= 80 && text === text.toUpperCase() && /[A-Z]/.test(text)) return 'web-eyebrow';
   return 'web-copy';
@@ -215,6 +229,7 @@ const mergeReadingItems = (items) => {
     const previous = merged.at(-1);
     const canMerge = previous
       && readingClass(previous) === readingClass(item)
+      && previous.role === item.role
       && Math.abs(previous.left - item.left) <= 12
       && item.top - previous.top <= Math.max(item.size * 2.5, 65);
     if (canMerge) {
@@ -227,6 +242,54 @@ const mergeReadingItems = (items) => {
   return merged;
 };
 
+const normaliseRunningLabel = (text) => text
+  .toLocaleLowerCase()
+  .replace(/[·•]/g, ' ')
+  .replace(/\bcontinued\b/g, ' ')
+  .replace(/續|繼續/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const isPageNumber = (text) => /^\d{1,3}$/.test(text.trim());
+const isRunningHeader = (item, pageHeight) => (
+  item.top <= pageHeight * 0.14
+  && item.size <= 20
+  && /^\d{1,2}\s+/.test(item.text)
+);
+const isRunningHeaderRemainder = (item, pageHeight) => (
+  item.top <= pageHeight * 0.14
+  && item.size <= 20
+  && (/^(?:[·•]|continued|續|繼續)$/iu.test(item.text) || item.text.length === 1)
+);
+const isPublicationCredit = (text) => /^(?:ze xun lai|tmfd independent music publication|tmfd vol\.|en revision|zh revision|繁中 revision)/i.test(text.trim());
+const isPublicationFooterLabel = (text) => /^(?:publication|出版資訊)$/iu.test(text.trim());
+const isContinuationLabel = (item) => /(?:[·•]\s*(?:continued|續|繼續))$/iu.test(item.text.trim());
+
+// Print magazines frequently split a spread into two columns. The web edition
+// uses a deliberate single-column reading order: all left-column material first,
+// followed by the right column, while preserving type hierarchy within each.
+const pageReadingFlow = (items, pageWidth) => {
+  const split = pageWidth * 0.5;
+  const hasRightColumn = items.some((item) => item.left >= split);
+  const columns = hasRightColumn
+    ? [items.filter((item) => item.left < split), items.filter((item) => item.left >= split)]
+    : [items];
+
+  return columns.flatMap((column) => {
+    const lines = rowGroups(column.sort((a, b) => a.top - b.top || a.left - b.left))
+      .map(({ top, items: row }) => {
+        const sorted = row.sort((a, b) => a.left - b.left);
+        const [first] = sorted;
+        return {
+          ...first,
+          top,
+          text: sorted.reduce((joined, item) => joined ? joinReadingText(joined, item.text) : item.text, '')
+        };
+      });
+    return mergeReadingItems(lines);
+  });
+};
+
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
 // deterministic: it runs in GitHub Actions with Poppler and needs neither a key nor
 // an external service. The PDF remains available as the layout-faithful original.
@@ -235,102 +298,59 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     '-xml', '-stdout', '-hidden', '-i', sourcePdf
   ], { maxBuffer: 32 * 1024 * 1024 });
 
-  const fontSizes = new Map(
+  const fontSpecs = new Map(
     [...stdout.matchAll(/<fontspec\b([^>]*)\/>/g)].map(([, attrs]) => [
-      attribute(attrs, 'id'), Number(attribute(attrs, 'size')) || 14
+      attribute(attrs, 'id'), {
+        size: Number(attribute(attrs, 'size')) || 14,
+        family: attribute(attrs, 'family')
+      }
     ])
   );
   const sections = [];
   const textParts = [];
+  const emittedSectionLabels = new Set();
   for (const [pageIndex, [, pageAttrs, pageBody]] of [...stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)].entries()) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
+    const pageWidth = Number(attribute(pageAttrs, 'width')) || 1;
     const items = [];
     for (const [, textAttrs, rawText] of pageBody.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
       const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
       const top = Number(attribute(textAttrs, 'top'));
-      if (!text || !Number.isFinite(top) || top < 95 || top > pageHeight * 0.91) continue;
-      textParts.push(text);
-      items.push({
+      const font = fontSpecs.get(attribute(textAttrs, 'font')) || { size: 14, family: '' };
+      if (!text || !Number.isFinite(top) || top > pageHeight * 0.88 || isPageNumber(text)) continue;
+      const item = {
         text,
         top,
         left: Number(attribute(textAttrs, 'left')) || 0,
-        size: fontSizes.get(attribute(textAttrs, 'font')) || 14
-      });
+        size: font.size,
+        family: font.family
+      };
+      if (isRunningHeader(item, pageHeight)) {
+        const key = normaliseRunningLabel(item.text);
+        if (emittedSectionLabels.has(key)) continue;
+        emittedSectionLabels.add(key);
+        item.role = 'section-label';
+      } else if (isRunningHeaderRemainder(item, pageHeight)) {
+        continue;
+      } else if ((isPublicationCredit(item.text) || isPublicationFooterLabel(item.text)) && pageIndex > 0) {
+        // Publication details are part of the cover identity. Repeated bottom
+        // matter is a print footer and should not interrupt web reading.
+        continue;
+      } else if (isPublicationCredit(item.text)) {
+        item.role = 'credit';
+      }
+      textParts.push(text);
+      items.push(item);
     }
     if (!items.length) continue;
-
-    const rows = rowGroups(items.sort((a, b) => a.top - b.top || a.left - b.left));
-    const blocks = [];
-    for (const { top, items: row } of rows) {
-      const sorted = row.sort((a, b) => a.left - b.left);
-      // pdf2xml sometimes splits one sentence into several font runs. Treat these
-      // as a single line, never as magazine columns.
-      if (sorted.length > 2) {
-        const [first] = sorted;
-        blocks.push({ type: 'single', top, className: readingClass(first), item: { ...first, text: sorted.map(({ text }) => text).join(' ') } });
-        continue;
-      }
-      const isColumnRow = sorted.length === 2 && sorted.at(-1).left - sorted[0].left > 180;
-      if (isColumnRow) {
-        blocks.push({ type: 'grid', items: sorted });
-        continue;
-      }
-      const item = sorted[0];
-      const previous = blocks.at(-1);
-      const closeToPrevious = previous?.type === 'single'
-        && previous.className === readingClass(item)
-        && Math.abs(previous.item.left - item.left) <= 10
-        && top - previous.top <= Math.max(item.size * 1.9, 60);
-      if (closeToPrevious) {
-        previous.item.text = joinReadingText(previous.item.text, item.text);
-        previous.top = top;
-      } else {
-        blocks.push({ type: 'single', top, className: readingClass(item), item });
-      }
-    }
-    const arrangedBlocks = [];
-    for (const block of blocks) {
-      const previous = arrangedBlocks.at(-1);
-      if (block.type === 'grid' && previous?.type === 'columns' && previous.rows[0].length === block.items.length) {
-        previous.rows.push(block.items);
-      } else if (block.type === 'grid') {
-        arrangedBlocks.push({ type: 'columns', rows: [block.items], trailing: block.items.map(() => []) });
-      } else if (previous?.type === 'columns'
-        && previous.rows.at(-1)[0]
-        && previous.rows.at(-1)[0].left === block.item.left
-        && readingClass(previous.rows.at(-1)[0]) === readingClass(block.item)
-        && block.top - previous.rows.at(-1)[0].top <= Math.max(block.item.size * 2.5, 75)) {
-        previous.trailing[0].push(block.item);
-      } else {
-        arrangedBlocks.push(block);
-      }
-    }
-    const content = arrangedBlocks.map((block) => {
-      if (block.type === 'columns') {
-        // Web editions deliberately read as one column: first the left PDF column,
-        // then the right. This is more legible than preserving a print spread.
-        const readingOrder = block.rows[0].flatMap((_, index) => mergeReadingItems(
-          block.rows.map((row) => row[index]).concat(block.trailing[index])
-        ));
-        // The Chinese edition's masthead is often exported as two adjacent PDF
-        // columns. On the web it is one bilingual identity line, not two headings.
-        if (language === 'zh' && pageIndex === 0
-          && readingOrder.length >= 2
-          && readingClass(readingOrder[0]) === 'web-heading'
-          && readingClass(readingOrder[1]) === 'web-heading') {
-          const [first, second, ...rest] = readingOrder;
-          readingOrder.splice(0, readingOrder.length, {
-            ...first,
-            text: `${first.text} ${second.text}`,
-            identity: true
-          }, ...rest);
-        }
-        return `<div class="web-stack">${readingOrder.map((item) => `<div class="web-row${item.identity ? ' web-identity-row' : ''}">${renderReadingItem(item)}</div>`).join('')}</div>`;
-      }
-      return `<div class="web-row">${renderReadingItem(block.item)}</div>`;
-    }).join('\n');
-    const media = (mediaByPage.get(pageIndex + 1) || []).map(({ src, alt }) => (
-      `<figure class="web-media"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
+    // A continuation heading can appear at the top of a second PDF column.
+    // Its preceding heading is already present in the web flow, so omit only
+    // the repeated continuation label—not its following editorial text.
+    const readingOrder = pageReadingFlow(items, pageWidth)
+      .filter((item) => !isContinuationLabel(item));
+    const content = readingOrder.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('\n');
+    const media = (mediaByPage.get(pageIndex + 1) || []).map(({ src, alt, shape }) => (
+      `<figure class="web-media web-media--${shape}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
     )).join('');
     sections.push(`<section class="web-section">${content}${media}</section>`);
   }

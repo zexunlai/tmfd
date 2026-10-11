@@ -85,15 +85,23 @@ p { margin: 10px 0; }
 .web-edition h1,.web-edition h2,.web-edition p { max-width: 100%; }
 .web-display { margin: 0; font-family: Georgia,SimSun; font-size: clamp(52px,9vw,96px); font-weight: 700; line-height: .92; letter-spacing: -.06em; }
 .web-heading { margin: 0; font-family: Georgia,SimSun; font-size: clamp(30px,4.5vw,48px); font-weight: 700; line-height: 1.08; letter-spacing: -.04em; }
+.web-section-label { margin: 0; color: var(--rust); font-family: Georgia,SimSun; font-size: 11pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
+.web-credit { margin: 0; max-width: 690px; font-size: 12pt; line-height: 1.45; }
 .web-row.edition-identity .web-heading { font-size: clamp(26px,3.2vw,42px); line-height: 1.08; white-space: nowrap; }
 .edition-identity .web-identity-row .web-heading { font-size: clamp(16px,3vw,34px); line-height: 1.2; letter-spacing: 0; white-space: nowrap; }
 .web-lede { margin: 0; max-width: 720px; font-family: Georgia,SimSun; font-size: clamp(20px,2.5vw,28px); line-height: 1.28; }
 .web-copy { margin: 0; max-width: 690px; font-size: 14pt; line-height: 1.6; }
 .web-eyebrow { margin: 0; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
+#reader-content[data-language="en"] .web-display,#reader-content[data-language="en"] .web-heading,#reader-content[data-language="en"] .web-lede,#reader-content[data-language="en"] .web-section-label { font-family: Georgia; }
+#reader-content[data-language="zh"] .web-display,#reader-content[data-language="zh"] .web-heading,#reader-content[data-language="zh"] .web-lede,#reader-content[data-language="zh"] .web-section-label { font-family: SimSun; }
+#reader-content[data-language="en"] .web-copy,#reader-content[data-language="en"] .web-credit { font-family: "Times New Roman"; }
+#reader-content[data-language="zh"] .web-copy,#reader-content[data-language="zh"] .web-credit { font-family: "Microsoft JhengHei"; }
 .reader-cover { margin: 54px 0; overflow: hidden; border-radius: 52px 18px 52px 18px; background: var(--paper-deep); box-shadow: 15px 15px 0 var(--peach); }
 .reader-cover img { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; object-position: center; }
 .web-media { width: fit-content; max-width: min(900px,100%); margin: 54px 0; padding: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 24px 42px 24px 42px; background: var(--mist); box-shadow: 9px 9px 0 var(--paper-deep); }
 .web-media img { display: block; width: auto; max-width: 100%; height: auto; max-height: 860px; border-radius: 14px 28px 14px 28px; object-fit: contain; }
+.web-media--portrait { max-width: min(560px,100%); }
+.web-media--square { max-width: min(700px,100%); }
 .embedded-pdf { margin: 54px 0; padding: 16px; border: 1px solid var(--line); border-radius: 24px 42px 24px 42px; background: var(--mist); }
 .embedded-pdf-label { margin: 0 0 12px; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .embedded-pdf-frame { display: block; width: 100%; min-height: 82vh; border: 0; border-radius: 14px 28px 14px 28px; background: var(--paper-light); }

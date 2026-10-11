@@ -21,11 +21,13 @@ issues/zh/2026-10-18-listening-in-the-city-zh.pdf
 
 If the uploaded PDFs are already below GitHub's limit, the preparation tool does nothing. It is safe to run each time before you commit.
 
-The two PDFs become one issue when both exist, but either language can be published by itself. The site defaults to English whenever it is present; if an English file is absent, it automatically uses the Chinese edition instead. Only the reading and PDF options for uploaded files are shown. The homepage exposes only the default **Read online** link, while Magazine exposes the available online-reading links. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, extra HTML file, cover image, or article image is needed. The original PDFs remain available in separate browser tabs.
+The two PDFs become one issue when both exist, but either language can be published by itself. The site defaults to English whenever it is present; if an English file is absent, it automatically uses the Chinese edition instead. Only the reading and PDF options for uploaded files are shown. The homepage exposes only the default **Read online** link, while Magazine exposes the available online-reading links. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, extra HTML file, cover image, or article image is needed. The original PDF opens inside the reading page when a reader selects Open PDF.
 
 ## PDF-only folder structure
 
-The first page of each uploaded PDF becomes the horizontal cover image on Home, Magazine and the reader. Images embedded in the PDF are extracted and inserted after their original PDF page in the reading edition; wide grayscale TMFD wordmark panels are excluded automatically. The Open PDF buttons display the selected PDF inside the reading page.
+The first page of each uploaded PDF becomes the horizontal cover image on Home, Magazine and the reader. It is the only image cropped to a horizontal frame with the orange treatment. Editorial images embedded in later pages are inserted after their source page and keep their original portrait, square, or landscape proportion in a pale-gray frame.
+
+The web conversion also reads the PDF's text hierarchy: serif display text and large type become titles; body-scale text becomes reading copy; the first occurrence of a numbered running header becomes a section label; repeated headers, continuation labels, page numbers, lower-page footers, page textures, and TMFD logo/wordmark assets are omitted. This is automatic, so keep important headings as real selectable text in the PDF rather than flattening them into an image. The Open PDF buttons display the selected PDF inside the reading page.
 
 Only use these two folders for weekly publishing:
 

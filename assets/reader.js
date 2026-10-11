@@ -19,6 +19,9 @@
     const edition = issue.languages?.[language];
     if (!edition) throw new Error('Language edition not found');
 
+    document.documentElement.lang = language === 'zh' ? 'zh-Hant' : 'en';
+    content.dataset.language = language;
+
     title.textContent = issue.title;
     date.textContent = `${issue.dateLabel} · ${language === 'zh' ? '中文' : 'English'}`;
     if (edition.web) {
