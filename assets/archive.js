@@ -14,7 +14,25 @@
     list.replaceChildren(...issues.map((issue) => {
       const item = document.createElement('article');
       item.className = 'archive-item';
-      item.innerHTML = `<div><p class="eyebrow">${issue.dateLabel}</p><h2>${issue.title}</h2></div><div class="archive-links"><a href="${issue.html}">Read online</a><a href="${issue.pdf}">PDF</a></div>`;
+      const details = document.createElement('div');
+      const date = document.createElement('p');
+      date.className = 'eyebrow';
+      date.textContent = issue.dateLabel;
+      const title = document.createElement('h2');
+      title.textContent = issue.title;
+      details.append(date, title);
+
+      const links = document.createElement('div');
+      links.className = 'archive-links';
+      const read = document.createElement('a');
+      read.href = issue.html;
+      read.textContent = 'Read online';
+      const pdf = document.createElement('a');
+      pdf.href = issue.pdf;
+      pdf.textContent = 'PDF';
+      links.append(read, pdf);
+
+      item.append(details, links);
       return item;
     }));
   } catch (_) {
