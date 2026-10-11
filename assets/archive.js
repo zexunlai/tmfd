@@ -21,9 +21,7 @@
     return index === needle.length;
   };
   const validTerms = (query) => normalize(query).split(' ').filter((term) => {
-    if (!term || genericTerms.has(term)) return false;
-    const isChinese = /\p{Script=Han}/u.test(term);
-    return isChinese ? term.length >= 2 : term.length >= 3;
+    return Boolean(term) && !genericTerms.has(term);
   });
   const wordScore = (term, word) => {
     if (word === term) return 100;
@@ -120,7 +118,7 @@
       const message = document.createElement('p');
       message.className = 'reader-fallback';
       message.textContent = query.trim() && !validTerms(query).length
-        ? 'Use two Chinese characters or three Latin letters. General terms are not indexed.'
+        ? 'General terms are not indexed. Try a name, brand or subject instead.'
         : 'No issues match this search yet.';
       return [message];
     })()));
