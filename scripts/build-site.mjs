@@ -103,20 +103,50 @@ const escapeHtml = (value) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const imageExtension = /\.(?:avif|gif|jpe?g|png|webp)$/i;
-const imageFiles = async (folder) => {
-  try {
-    return (await readdir(folder)).filter((name) => imageExtension.test(name)).sort();
-  } catch (_) {
-    return [];
-  }
+const assetNumber = (value) => String(value).padStart(3, '0');
+
+// Every visual is derived from the issue PDF. The first page provides the
+// horizontal cover crop; embedded raster artwork is placed after its source
+// page in the responsive edition. Nothing extra needs to be uploaded.
+const embeddedPdfImages = async (sourcePdf) => {
+  const { stdout } = await execFileAsync('pdfimages', ['-list', sourcePdf]);
+  return [...stdout.matchAll(/^\s*(\d+)\s+(\d+)\s+image\b/gm)].map(([, page, index]) => ({
+    page: Number(page),
+    index: Number(index)
+  }));
 };
 
-const imageLabel = (filename) => filename
-  .replace(imageExtension, '')
-  .replace(/^page-\d+[-_]?/i, '')
-  .replace(/[-_]+/g, ' ')
-  .trim() || 'TMFD editorial image';
+const createPdfVisuals = async ({ sourcePdf, id, language }) => {
+  const folder = path.join(destination, 'issue-assets', id);
+  await mkdir(folder, { recursive: true });
+
+  const coverBase = path.join(folder, `cover-${language}`);
+  await execFileAsync('pdftoppm', [
+    '-jpeg', '-singlefile', '-f', '1', '-l', '1',
+    '-scale-to-x', '1600', '-scale-to-y', '-1', sourcePdf, coverBase
+  ]);
+
+  const mediaByPage = new Map();
+  const images = await embeddedPdfImages(sourcePdf);
+  if (images.length) {
+    const imageBase = path.join(folder, `${language}-image`);
+    await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
+    for (const { page, index } of images) {
+      const filename = `${language}-image-${assetNumber(index)}.png`;
+      const image = {
+        src: `../issue-assets/${id}/${filename}`,
+        alt: language === 'zh' ? '原始 PDF 中的編輯圖片' : 'Editorial image from the original PDF'
+      };
+      if (!mediaByPage.has(page)) mediaByPage.set(page, []);
+      mediaByPage.get(page).push(image);
+    }
+  }
+
+  return {
+    cover: `issue-assets/${id}/cover-${language}.jpg`,
+    mediaByPage
+  };
+};
 
 const attribute = (source, name) => {
   const match = source.match(new RegExp(`\\b${name}="([^"]*)"`));
@@ -318,29 +348,24 @@ const issues = [];
 for (const group of issueGroups.values()) {
   const { id, date, slug } = group;
   const languages = {};
+  const covers = {};
   let sourceText = titleFromSlug(slug);
-  const cover = (await imageFiles(path.join(issueFolder, 'covers')))
-    .find((filename) => filename.replace(imageExtension, '') === id);
-  const mediaFiles = await imageFiles(path.join(issueFolder, 'media', id));
-  const mediaByPage = new Map();
-  for (const filename of mediaFiles) {
-    const page = Number((filename.match(/^page-(\d+)/i) || [])[1]);
-    if (!Number.isInteger(page) || page < 1) continue;
-    const image = {
-      src: `../issues/media/${id}/${filename}`,
-      alt: imageLabel(filename)
-    };
-    if (!mediaByPage.has(page)) mediaByPage.set(page, []);
-    mediaByPage.get(page).push(image);
-  }
 
   for (const language of ['en', 'zh']) {
     const files = group.files[language];
     if (!files.pdf && !files.html) continue;
     let web = null;
     if (files.pdf) {
+      const sourcePdf = path.join(issueFolder, language, files.pdf);
+      let visuals = { cover: null, mediaByPage: new Map() };
       try {
-        const conversion = await buildReadingEdition(path.join(issueFolder, language, files.pdf), language, mediaByPage);
+        visuals = await createPdfVisuals({ sourcePdf, id, language });
+        covers[language] = visuals.cover;
+      } catch (error) {
+        console.warn(`Could not create PDF visuals for ${id} (${language}): ${error.message}`);
+      }
+      try {
+        const conversion = await buildReadingEdition(sourcePdf, language, visuals.mediaByPage);
         sourceText += ` ${conversion.text}`;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
@@ -366,7 +391,8 @@ for (const group of issueGroups.values()) {
     date,
     dateLabel: formatDate(date),
     title: titleFromSlug(slug),
-    cover: cover ? `issues/covers/${cover}` : null,
+    cover: covers.en || covers.zh || null,
+    covers,
     languages,
     ...metadata
   });

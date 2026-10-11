@@ -36,11 +36,12 @@
       throw new Error('Issue has no readable source');
     }
 
-    if (issue.cover) {
+    const coverSource = issue.covers?.[language] || issue.cover;
+    if (coverSource) {
       const cover = document.createElement('figure');
       cover.className = 'reader-cover';
       const image = document.createElement('img');
-      image.src = `../${issue.cover}`;
+      image.src = `../${coverSource}`;
       image.alt = `${issue.title} cover artwork`;
       cover.append(image);
       const firstSection = content.querySelector('.web-section');
