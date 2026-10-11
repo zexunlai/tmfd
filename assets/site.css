@@ -59,6 +59,9 @@ p { margin: 10px 0; }
 .reader-heading h1 { font-size: clamp(36px, 5vw, 60px); margin-bottom: 10px; }
 .reader-heading .lede { font-size: 14pt; }
 .issue-reader { width: 100%; min-height: 78vh; border: 1px solid var(--gray); background: var(--gray-light); }
+.issue-pages { max-width: 960px; margin: 0 auto; background: var(--gray); padding: 20px; }
+.issue-page { display: block; width: 100%; height: auto; margin: 0 auto 20px; background: var(--white); }
+.issue-page:last-child { margin-bottom: 0; }
 .reader-fallback { margin: 40px 0; }
 .archive-item { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px 0; border-bottom: 1px solid var(--gray); }
 .archive-item h2 { font-size: 24pt; margin-bottom: 6px; }
@@ -73,6 +76,8 @@ p { margin: 10px 0; }
   .current-issue { flex-direction: column; margin-left: -24px; margin-right: -24px; padding: 40px 24px; }
   .reader-heading { align-items: start; flex-direction: column; }
   .issue-reader { min-height: 70vh; }
+  .issue-pages { padding: 8px; }
+  .issue-page { margin-bottom: 8px; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; }
   .site-footer { flex-direction: column; }
 }

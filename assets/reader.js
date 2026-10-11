@@ -17,12 +17,26 @@
 
     title.textContent = issue.title;
     date.textContent = issue.dateLabel;
-    const source = issue.html || issue.pdf;
-    const frame = document.createElement('iframe');
-    frame.className = 'issue-reader';
-    frame.src = `../${source}`;
-    frame.title = `${issue.title} — TMFD`;
-    content.append(frame);
+    if (issue.pages?.length) {
+      const pages = document.createElement('div');
+      pages.className = 'issue-pages';
+      for (const [index, source] of issue.pages.entries()) {
+        const page = document.createElement('img');
+        page.className = 'issue-page';
+        page.src = `../${source}`;
+        page.alt = `${issue.title}, page ${index + 1}`;
+        pages.append(page);
+      }
+      content.append(pages);
+    } else if (issue.html) {
+      const frame = document.createElement('iframe');
+      frame.className = 'issue-reader';
+      frame.src = `../${issue.html}`;
+      frame.title = `${issue.title} — TMFD`;
+      content.append(frame);
+    } else {
+      throw new Error('Issue has no readable source');
+    }
 
     if (issue.pdf) {
       openPdf.href = `../${issue.pdf}`;
