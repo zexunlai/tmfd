@@ -59,9 +59,18 @@ p { margin: 10px 0; }
 .reader-heading h1 { font-size: clamp(36px, 5vw, 60px); margin-bottom: 10px; }
 .reader-heading .lede { font-size: 14pt; }
 .issue-reader { width: 100%; min-height: 78vh; border: 1px solid var(--gray); background: var(--gray-light); }
-.issue-pages { max-width: 960px; margin: 0 auto; background: var(--gray); padding: 20px; }
-.issue-page { display: block; width: 100%; height: auto; margin: 0 auto 20px; background: var(--white); }
-.issue-page:last-child { margin-bottom: 0; }
+.web-edition { max-width: 840px; margin: 0 auto; }
+.web-section { padding: 56px 0; border-top: 1px solid var(--gray); }
+.web-section:first-child { border-top: 0; padding-top: 0; }
+.web-row { margin: 0 0 14px; }
+.web-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 36px 52px; margin: 28px 0; }
+.web-column > * + * { margin-top: 20px; }
+.web-edition h1, .web-edition h2, .web-edition p { max-width: 100%; }
+.web-display { margin: 0; font-family: Georgia, serif; font-size: clamp(52px, 9vw, 96px); font-weight: 700; line-height: .92; letter-spacing: -.06em; }
+.web-heading { margin: 0; font-family: Georgia, serif; font-size: clamp(30px, 4.5vw, 48px); font-weight: 700; line-height: 1.08; letter-spacing: -.04em; }
+.web-lede { margin: 0; max-width: 720px; font-family: Georgia, serif; font-size: clamp(20px, 2.5vw, 28px); line-height: 1.28; }
+.web-copy { margin: 0; max-width: 690px; font-size: 14pt; line-height: 1.6; }
+.web-eyebrow { margin: 0; font-size: 10pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
 .reader-fallback { margin: 40px 0; }
 .archive-item { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px 0; border-bottom: 1px solid var(--gray); }
 .archive-item h2 { font-size: 24pt; margin-bottom: 6px; }
@@ -76,8 +85,8 @@ p { margin: 10px 0; }
   .current-issue { flex-direction: column; margin-left: -24px; margin-right: -24px; padding: 40px 24px; }
   .reader-heading { align-items: start; flex-direction: column; }
   .issue-reader { min-height: 70vh; }
-  .issue-pages { padding: 8px; }
-  .issue-page { margin-bottom: 8px; }
+  .web-section { padding: 40px 0; }
+  .web-columns { grid-template-columns: 1fr; gap: 28px; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; }
   .site-footer { flex-direction: column; }
 }

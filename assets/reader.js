@@ -17,17 +17,11 @@
 
     title.textContent = issue.title;
     date.textContent = issue.dateLabel;
-    if (issue.pages?.length) {
-      const pages = document.createElement('div');
-      pages.className = 'issue-pages';
-      for (const [index, source] of issue.pages.entries()) {
-        const page = document.createElement('img');
-        page.className = 'issue-page';
-        page.src = `../${source}`;
-        page.alt = `${issue.title}, page ${index + 1}`;
-        pages.append(page);
-      }
-      content.append(pages);
+    if (issue.web) {
+      const edition = await fetch(`../${issue.web}`);
+      if (!edition.ok) throw new Error('Reading edition unavailable');
+      // The fragment is generated during the local/GitHub build from escaped PDF text.
+      content.innerHTML = await edition.text();
     } else if (issue.html) {
       const frame = document.createElement('iframe');
       frame.className = 'issue-reader';
