@@ -1,0 +1,10 @@
+{
+  "name": "tmfd",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TMFD independent music publication website",
+  "scripts": {
+    "build": "node scripts/build-site.mjs"
+  }
+}
+

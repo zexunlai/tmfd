@@ -1,0 +1,23 @@
+(async () => {
+  const year = document.getElementById('year');
+  if (year) year.textContent = new Date().getFullYear();
+
+  try {
+    const response = await fetch('data/issues.json');
+    if (!response.ok) throw new Error('Issue index unavailable');
+    const issues = await response.json();
+    const current = issues[0];
+    if (!current) return;
+
+    document.getElementById('current-title').textContent = current.title;
+    document.getElementById('current-description').textContent = current.dateLabel;
+    const read = document.getElementById('read-current');
+    const download = document.getElementById('download-current');
+    read.href = current.html;
+    download.href = current.pdf;
+    document.getElementById('current-actions').hidden = false;
+  } catch (_) {
+    document.getElementById('current-title').textContent = 'The first issue is coming soon.';
+  }
+})();
+
