@@ -11,7 +11,7 @@
 @keyframes reader-reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; color: var(--ink); background: linear-gradient(rgba(248,243,235,.94),rgba(248,243,235,.94)),url("visuals/ink-waves.png") center / 740px auto fixed; font-family: Arial,"Microsoft JhengHei",sans-serif; font-size: 14pt; line-height: 1.6; }
+body { margin: 0; color: var(--ink); background: linear-gradient(rgba(248,243,235,.94),rgba(248,243,235,.94)),url("visuals/ink-waves.png") center / 740px auto fixed; font-family: "Times New Roman","Microsoft JhengHei"; font-size: 14pt; line-height: 1.6; }
 a { color: inherit; }
 a:focus-visible { outline: 3px solid var(--orange); outline-offset: 4px; }
 .skip-link { position: absolute; left: -999px; top: auto; }
@@ -26,7 +26,7 @@ nav a:hover, nav a[aria-current="page"] { background: var(--ink); color: var(--p
 .masthead { position: relative; isolation: isolate; overflow: hidden; padding: 94px 56px 104px; margin: 0 -40px; border-radius: 0 0 56px 56px; background: var(--paper-light); }
 .masthead::after { content: ""; position: absolute; z-index: -1; inset: 0 0 0 43%; background: linear-gradient(90deg,var(--paper-light),rgba(255,253,252,.25)),url("visuals/orange-folds-wide.png") center / cover; opacity: .82; }
 .eyebrow { margin: 0 0 15px; font-size: 10pt; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
-h1,h2 { font-family: Georgia,SimSun,serif; line-height: 1.08; }
+h1,h2 { font-family: Georgia,SimSun; line-height: 1.08; }
 h1 { max-width: 760px; margin: 0 0 20px; font-size: clamp(48px,7vw,82px); font-weight: 700; letter-spacing: -.05em; }
 h2 { margin: 0 0 15px; font-size: clamp(32px,4vw,48px); font-weight: 700; letter-spacing: -.035em; }
 p { margin: 10px 0; }
@@ -79,11 +79,11 @@ p { margin: 10px 0; }
 .web-row.edition-identity, .web-stack.edition-identity { margin: 0 0 36px; }
 .web-stack { margin: 28px 0; }
 .web-edition h1,.web-edition h2,.web-edition p { max-width: 100%; }
-.web-display { margin: 0; font-family: Georgia,SimSun,serif; font-size: clamp(52px,9vw,96px); font-weight: 700; line-height: .92; letter-spacing: -.06em; }
-.web-heading { margin: 0; font-family: Georgia,SimSun,serif; font-size: clamp(30px,4.5vw,48px); font-weight: 700; line-height: 1.08; letter-spacing: -.04em; }
+.web-display { margin: 0; font-family: Georgia,SimSun; font-size: clamp(52px,9vw,96px); font-weight: 700; line-height: .92; letter-spacing: -.06em; }
+.web-heading { margin: 0; font-family: Georgia,SimSun; font-size: clamp(30px,4.5vw,48px); font-weight: 700; line-height: 1.08; letter-spacing: -.04em; }
 .web-row.edition-identity .web-heading { font-size: clamp(26px,3.2vw,42px); line-height: 1.08; white-space: nowrap; }
 .edition-identity .web-identity-row .web-heading { font-size: clamp(16px,3vw,34px); line-height: 1.2; letter-spacing: 0; white-space: nowrap; }
-.web-lede { margin: 0; max-width: 720px; font-family: Georgia,SimSun,serif; font-size: clamp(20px,2.5vw,28px); line-height: 1.28; }
+.web-lede { margin: 0; max-width: 720px; font-family: Georgia,SimSun; font-size: clamp(20px,2.5vw,28px); line-height: 1.28; }
 .web-copy { margin: 0; max-width: 690px; font-size: 14pt; line-height: 1.6; }
 .web-eyebrow { margin: 0; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
 .reader-cover,.web-media { margin: 54px 0; overflow: hidden; border-radius: 52px 18px 52px 18px; background: var(--paper-deep); box-shadow: 15px 15px 0 var(--peach); }
@@ -109,7 +109,7 @@ p { margin: 10px 0; }
 .about-section h2,.legal-section h2 { font-size: 28pt; }
 .legal-section p { max-width: 760px; }
 .translation { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--line); }
-.translation h3 { margin: 0 0 15px; font-family: SimSun,serif; font-size: 24pt; line-height: 1.08; }
+.translation h3 { margin: 0 0 15px; font-family: SimSun; font-size: 24pt; line-height: 1.08; }
 @media (max-width:680px) {
   .site-header,main,.site-footer { padding-left: 24px; padding-right: 24px; }
   .site-header { min-height: 80px; }.wordmark { width: 76px; } nav { gap: 1px; font-size: 8.5pt; } nav a { padding: 6px 7px; }
