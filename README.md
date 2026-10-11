@@ -7,7 +7,8 @@ Official website for **TMFD — Task Force on Music-related Financial Disclosure
 1. Add each PDF to its language folder, using exactly the same date and title stem when both editions exist. Add the language at the end of each filename:
    - `issues/en/YYYY-MM-DD-short-title-en.pdf` — English edition.
    - `issues/zh/YYYY-MM-DD-short-title-zh.pdf` — Traditional Chinese edition.
-2. Commit and push them to `main`.
+2. Double-click **Prepare TMFD PDFs.command** in this folder. It automatically prepares only oversized PDFs for GitHub and stores a safe copy of each original in `Documents/TMFD Original PDFs`.
+3. In GitHub Desktop, commit and push them to `main`.
 
 GitHub Actions rebuilds the issue index and deploys the refreshed site automatically. The newest issue becomes the homepage feature and every issue appears in the archive.
 
@@ -17,6 +18,8 @@ The filename date controls ordering and display. For example:
 issues/en/2026-10-18-listening-in-the-city-en.pdf
 issues/zh/2026-10-18-listening-in-the-city-zh.pdf
 ```
+
+If the uploaded PDFs are already below GitHub's limit, the preparation tool does nothing. It is safe to run each time before you commit.
 
 The two PDFs become one issue when both exist, but either language can be published by itself. The site defaults to English whenever it is present; if an English file is absent, it automatically uses the Chinese edition instead. Only the reading and PDF options for uploaded files are shown. The homepage exposes only the default **Read online** link, while Magazine exposes the available online-reading links. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, extra HTML file, cover image, or article image is needed. The original PDFs remain available in separate browser tabs.
 
