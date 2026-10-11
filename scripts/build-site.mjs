@@ -280,18 +280,21 @@ for (const name of publishable) {
   await cp(path.join(root, name), path.join(destination, name), { recursive: true, force: true });
 }
 
-const issueFolder = path.join(root, 'issues');
-let filenames = [];
-try { filenames = await readdir(issueFolder); } catch (_) { /* First issue has not been added yet. */ }
-
 const issueGroups = new Map();
-for (const filename of filenames) {
-  const match = filename.match(/^(\d{4}-\d{2}-\d{2})-(.+?)(?:\.(en|zh))?\.(pdf|html)$/);
-  if (!match) continue;
-  const [, date, slug, language = 'en', format] = match;
-  const id = `${date}-${slug}`;
-  if (!issueGroups.has(id)) issueGroups.set(id, { id, date, slug, files: { en: {}, zh: {} } });
-  issueGroups.get(id).files[language][format] = filename;
+const issueFolder = path.join(root, 'issues');
+// Each language has its own drop folder. An issue can be published with either
+// one: the reader and homepage prefer English, then fall back to Chinese.
+for (const language of ['en', 'zh']) {
+  let filenames = [];
+  try { filenames = await readdir(path.join(issueFolder, language)); } catch (_) { continue; }
+  for (const filename of filenames) {
+    const match = filename.match(/^(\d{4}-\d{2}-\d{2})-(.+?)\.(pdf|html)$/);
+    if (!match) continue;
+    const [, date, slug, format] = match;
+    const id = `${date}-${slug}`;
+    if (!issueGroups.has(id)) issueGroups.set(id, { id, date, slug, files: { en: {}, zh: {} } });
+    issueGroups.get(id).files[language][format] = filename;
+  }
 }
 const issues = [];
 for (const group of issueGroups.values()) {
@@ -305,7 +308,7 @@ for (const group of issueGroups.values()) {
     let web = null;
     if (files.pdf) {
       try {
-        const conversion = await buildReadingEdition(path.join(issueFolder, files.pdf), language);
+        const conversion = await buildReadingEdition(path.join(issueFolder, language, files.pdf), language);
         sourceText += ` ${conversion.text}`;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
@@ -318,8 +321,8 @@ for (const group of issueGroups.values()) {
       }
     }
     languages[language] = {
-      html: files.html ? `issues/${files.html}` : null,
-      pdf: files.pdf ? `issues/${files.pdf}` : null,
+      html: files.html ? `issues/${language}/${files.html}` : null,
+      pdf: files.pdf ? `issues/${language}/${files.pdf}` : null,
       web
     };
   }
