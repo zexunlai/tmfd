@@ -71,12 +71,17 @@
       const articleRows = [...section.children].filter((child) => child !== identity);
       if (articleRows.length) {
         identity.classList.add('edition-identity');
+        const displayIndex = articleRows.findIndex((row) => row.querySelector('.web-display'));
+        const titleRows = displayIndex >= 0 ? articleRows.slice(0, displayIndex + 1) : [];
+        const informationRows = displayIndex >= 0 ? articleRows.slice(displayIndex + 1) : articleRows;
+        identity.after(...titleRows);
+        if (!informationRows.length) return;
         const intro = document.createElement('div');
         intro.className = 'article-intro';
         const information = document.createElement('div');
         information.className = 'article-intro-information';
-        information.append(...articleRows);
-        identity.after(intro);
+        information.append(...informationRows);
+        (titleRows.at(-1) || identity).after(intro);
         intro.append(information, actions);
       }
     }
