@@ -17,9 +17,11 @@
     read.textContent = current.html ? 'Read online' : 'Open PDF';
     read.target = current.html ? '' : '_blank';
 
-    if (current.pdf) {
+    if (current.html && current.pdf) {
       download.href = current.pdf;
-      download.download = '';
+      download.textContent = 'Open PDF';
+      download.target = '_blank';
+      download.rel = 'noopener';
       download.hidden = false;
     } else {
       download.hidden = true;

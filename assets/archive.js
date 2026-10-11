@@ -31,11 +31,12 @@
         if (!issue.html) read.target = '_blank';
         links.append(read);
       }
-      if (issue.pdf) {
+      if (issue.html && issue.pdf) {
         const pdf = document.createElement('a');
         pdf.href = `../${issue.pdf}`;
-        pdf.download = '';
-        pdf.textContent = 'Download PDF';
+        pdf.target = '_blank';
+        pdf.rel = 'noopener';
+        pdf.textContent = 'Open PDF';
         links.append(pdf);
       }
 

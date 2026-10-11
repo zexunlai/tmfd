@@ -18,7 +18,7 @@ issues/2026-10-18-listening-in-the-city.pdf
 issues/2026-10-18-listening-in-the-city.html
 ```
 
-You can publish with either file on its own. When both are present, the site shows a **Read online** link plus a **Download PDF** link. When only a PDF is present, the site offers **Open PDF** and **Download PDF**. Keep any HTML issue self-contained: use relative links for images or supporting files stored under `issues/`.
+You can publish with either file on its own. An HTML issue appears as a **Read online** link to that issue's web page within the TMFD site. A PDF issue appears as an **Open PDF** link in a new browser tab. When both are present, readers can choose either format. Keep any HTML issue self-contained: use relative links for images or supporting files stored under `issues/`.
 
 ## Local preview
 
