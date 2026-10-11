@@ -348,7 +348,12 @@ for (const language of ['en', 'zh']) {
   for (const filename of filenames) {
     const match = filename.match(/^(\d{4}-\d{2}-\d{2})-(.+?)\.(pdf|html)$/);
     if (!match) continue;
-    const [, date, slug, format] = match;
+    const [, date, filenameSlug, format] = match;
+    // Keep the language visible in each filename without making it part of the
+    // issue title or creating a separate issue. Older filenames without this
+    // suffix remain supported.
+    const slug = filenameSlug.replace(new RegExp(`-${language}$`, 'i'), '');
+    if (!slug) continue;
     const id = `${date}-${slug}`;
     if (!issueGroups.has(id)) issueGroups.set(id, { id, date, slug, files: { en: {}, zh: {} } });
     issueGroups.get(id).files[language][format] = filename;
