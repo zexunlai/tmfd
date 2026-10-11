@@ -36,6 +36,17 @@
       throw new Error('Issue has no readable source');
     }
 
+    if (issue.cover) {
+      const cover = document.createElement('figure');
+      cover.className = 'reader-cover';
+      const image = document.createElement('img');
+      image.src = `../${issue.cover}`;
+      image.alt = `${issue.title} cover artwork`;
+      cover.append(image);
+      const firstSection = content.querySelector('.web-section');
+      if (firstSection) firstSection.after(cover);
+    }
+
     const configure = (id, code, label, pdf = false) => {
       const link = document.getElementById(id);
       const alternative = issue.languages?.[code];

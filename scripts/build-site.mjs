@@ -103,6 +103,21 @@ const escapeHtml = (value) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
+const imageExtension = /\.(?:avif|gif|jpe?g|png|webp)$/i;
+const imageFiles = async (folder) => {
+  try {
+    return (await readdir(folder)).filter((name) => imageExtension.test(name)).sort();
+  } catch (_) {
+    return [];
+  }
+};
+
+const imageLabel = (filename) => filename
+  .replace(imageExtension, '')
+  .replace(/^page-\d+[-_]?/i, '')
+  .replace(/[-_]+/g, ' ')
+  .trim() || 'TMFD editorial image';
+
 const attribute = (source, name) => {
   const match = source.match(new RegExp(`\\b${name}="([^"]*)"`));
   return match ? match[1] : '';
@@ -167,7 +182,7 @@ const mergeReadingItems = (items) => {
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
 // deterministic: it runs in GitHub Actions with Poppler and needs neither a key nor
 // an external service. The PDF remains available as the layout-faithful original.
-const buildReadingEdition = async (sourcePdf, language) => {
+const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map()) => {
   const { stdout } = await execFileAsync('pdftohtml', [
     '-xml', '-stdout', '-hidden', '-i', sourcePdf
   ], { maxBuffer: 32 * 1024 * 1024 });
@@ -266,7 +281,10 @@ const buildReadingEdition = async (sourcePdf, language) => {
       }
       return `<div class="web-row">${renderReadingItem(block.item)}</div>`;
     }).join('\n');
-    sections.push(`<section class="web-section">${content}</section>`);
+    const media = (mediaByPage.get(pageIndex + 1) || []).map(({ src, alt }) => (
+      `<figure class="web-media"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
+    )).join('');
+    sections.push(`<section class="web-section">${content}${media}</section>`);
   }
   return {
     edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,
@@ -301,6 +319,20 @@ for (const group of issueGroups.values()) {
   const { id, date, slug } = group;
   const languages = {};
   let sourceText = titleFromSlug(slug);
+  const cover = (await imageFiles(path.join(issueFolder, 'covers')))
+    .find((filename) => filename.replace(imageExtension, '') === id);
+  const mediaFiles = await imageFiles(path.join(issueFolder, 'media', id));
+  const mediaByPage = new Map();
+  for (const filename of mediaFiles) {
+    const page = Number((filename.match(/^page-(\d+)/i) || [])[1]);
+    if (!Number.isInteger(page) || page < 1) continue;
+    const image = {
+      src: `../issues/media/${id}/${filename}`,
+      alt: imageLabel(filename)
+    };
+    if (!mediaByPage.has(page)) mediaByPage.set(page, []);
+    mediaByPage.get(page).push(image);
+  }
 
   for (const language of ['en', 'zh']) {
     const files = group.files[language];
@@ -308,7 +340,7 @@ for (const group of issueGroups.values()) {
     let web = null;
     if (files.pdf) {
       try {
-        const conversion = await buildReadingEdition(path.join(issueFolder, language, files.pdf), language);
+        const conversion = await buildReadingEdition(path.join(issueFolder, language, files.pdf), language, mediaByPage);
         sourceText += ` ${conversion.text}`;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
@@ -334,6 +366,7 @@ for (const group of issueGroups.values()) {
     date,
     dateLabel: formatDate(date),
     title: titleFromSlug(slug),
+    cover: cover ? `issues/covers/${cover}` : null,
     languages,
     ...metadata
   });

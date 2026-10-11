@@ -20,6 +20,20 @@ issues/zh/2026-10-18-listening-in-the-city.pdf
 
 The two PDFs become one issue when both exist, but either language can be published by itself. The site defaults to English whenever it is present; if an English file is absent, it automatically uses the Chinese edition instead. Only the reading and PDF options for uploaded files are shown. The homepage exposes only the default **Read online** link, while Magazine exposes the available online-reading links. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, or extra HTML file is needed. The original PDFs remain available in separate browser tabs.
 
+## Add cover and editorial images
+
+Images are optional and require no HTML editing.
+
+- Put one cover image at `issues/covers/YYYY-MM-DD-short-title.png` (JPG, WebP and AVIF also work). The website crops it into a horizontal cover panel on Home, Magazine and the reader.
+- Put an editorial image at `issues/media/YYYY-MM-DD-short-title/page-02-image-name.png`. Replace `02` with the PDF page number after which it should appear. You may add several images for the same page.
+
+For example:
+
+```text
+issues/covers/2026-10-18-listening-in-the-city.jpg
+issues/media/2026-10-18-listening-in-the-city/page-02-guitar.jpg
+```
+
 During publishing, TMFD also assigns one or two mandatory music genres from its built-in genre vocabulary and creates a hidden search index from distinctive article terms and names. Generic terms such as “music”, “tickets”, “buy”, and their Chinese equivalents are intentionally excluded from search. The genre vocabulary is designed to be extended when TMFD covers a new style.
 
 ## Local preview

@@ -26,6 +26,14 @@
       read.href = `read/?issue=${encodeURIComponent(current.id)}&lang=${language}`;
       read.hidden = false;
       document.getElementById('current-actions').hidden = false;
+      if (current.cover) {
+        const cover = document.getElementById('current-cover');
+        cover.href = read.href;
+        const image = document.getElementById('current-cover-image');
+        image.src = current.cover;
+        image.alt = `${current.title} cover artwork`;
+        cover.hidden = false;
+      }
     }
   } catch (_) {
     document.getElementById('current-title').textContent = 'The first issue is coming soon.';

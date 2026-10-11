@@ -94,6 +94,15 @@
     });
     details.append(date, title, summary, genres);
 
+    if (issue.cover) {
+      const cover = document.createElement('img');
+      cover.className = 'archive-cover';
+      cover.src = `../${issue.cover}`;
+      cover.alt = `${issue.title} cover artwork`;
+      cover.loading = 'lazy';
+      details.prepend(cover);
+    }
+
     const links = document.createElement('div');
     links.className = 'archive-links';
     addLink(links, issue, 'en', 'Read online');
