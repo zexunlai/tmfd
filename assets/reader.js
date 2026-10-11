@@ -96,6 +96,8 @@
         intro.append(information, actions);
       }
     }
+    content.classList.add('is-ready');
+    requestAnimationFrame(() => actions.classList.add('is-ready'));
   } catch (_) {
     title.textContent = 'Issue unavailable';
     content.replaceChildren();
