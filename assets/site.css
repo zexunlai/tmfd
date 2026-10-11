@@ -73,9 +73,9 @@ p { margin: 10px 0; }
 .filter-button:hover, .filter-button.is-active { background: var(--orange); color: var(--white); }
 .result-count { margin: 18px 0 0; font-size: 10pt; font-weight: 700; }
 .reader-main { padding-top: 56px; padding-bottom: 84px; }
-.issue-action-matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; width: 100%; }
-.issue-action-matrix .button { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: center; padding: 4px; text-align: center; font-size: 7px; line-height: 1.1; white-space: normal; }
-.edition-intro { display: grid; grid-template-columns: minmax(0, 9fr) minmax(0, 1fr); gap: 14px; align-items: start; margin-bottom: 28px; }
+.issue-action-matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.issue-action-matrix .button { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: center; padding: 7px; text-align: center; font-size: 10pt; line-height: 1.15; white-space: normal; overflow-wrap: anywhere; }
+.edition-intro { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr); gap: 24px; align-items: start; margin-bottom: 28px; }
 .edition-intro-title .web-row { margin: 0; }
 .edition-intro + .web-row { margin-top: 0; }
 .issue-reader { width: 100%; min-height: 78vh; border: 1px solid var(--gray); background: var(--gray-light); }
@@ -120,9 +120,9 @@ p { margin: 10px 0; }
   .wordmark { width: 76px; }
   .issue-reader { min-height: 70vh; }
   .web-section { padding: 40px 0; }
-  .edition-intro { grid-template-columns: minmax(0, 2fr) minmax(116px, 1fr); gap: 10px; }
-  .issue-action-matrix { gap: 4px; }
-  .issue-action-matrix .button { min-height: 38px; padding: 4px; font-size: 7px; }
+  .edition-intro { grid-template-columns: 1fr; gap: 18px; }
+  .issue-action-matrix { max-width: 360px; gap: 8px; }
+  .issue-action-matrix .button { min-height: 52px; padding: 7px; font-size: 10pt; }
   .web-identity-row .web-heading { font-size: 8px; }
   .magazine-layout { grid-template-columns: 1fr; gap: 32px; margin-top: 36px; }
   .issue-discovery { margin-left: -24px; margin-right: -24px; padding: 24px; position: static; }
