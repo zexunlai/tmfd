@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -126,6 +126,7 @@ const embeddedPdfImages = async (sourcePdf) => {
 const isWordmarkPanel = ({ width, height, color }) => (
   color === 'gray' && height > 0 && width / height > 2.5
 );
+const minimumEditorialImageBytes = 40 * 1024;
 
 const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   const folder = path.join(destination, 'issue-assets', id);
@@ -138,14 +139,18 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   ]);
 
   const mediaByPage = new Map();
-  const images = (await embeddedPdfImages(sourcePdf)).filter((image) => (
+  const imageCandidates = (await embeddedPdfImages(sourcePdf)).filter((image) => (
     image.page !== 1 && !isWordmarkPanel(image)
   ));
-  if (images.length) {
+  if (imageCandidates.length) {
     const imageBase = path.join(folder, `${language}-image`);
     await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
-    for (const { page, index } of images) {
+    for (const { page, index } of imageCandidates) {
       const filename = `${language}-image-${assetNumber(index)}.png`;
+      const imagePath = path.join(folder, filename);
+      // Very small extracted images are PDF page textures or layout placeholders,
+      // rather than editorial pictures. Do not create empty visual cards for them.
+      if ((await stat(imagePath)).size < minimumEditorialImageBytes) continue;
       const image = {
         src: `../issue-assets/${id}/${filename}`,
         alt: language === 'zh' ? '原始 PDF 中的編輯圖片' : 'Editorial image from the original PDF'

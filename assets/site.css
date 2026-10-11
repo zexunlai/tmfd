@@ -92,8 +92,8 @@ p { margin: 10px 0; }
 .web-eyebrow { margin: 0; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
 .reader-cover { margin: 54px 0; overflow: hidden; border-radius: 52px 18px 52px 18px; background: var(--paper-deep); box-shadow: 15px 15px 0 var(--peach); }
 .reader-cover img { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; object-position: center; }
-.web-media { max-width: 900px; margin: 54px 0; padding: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 24px 42px 24px 42px; background: var(--mist); box-shadow: 9px 9px 0 var(--paper-deep); }
-.web-media img { display: block; width: 100%; aspect-ratio: 16 / 7; border-radius: 14px 28px 14px 28px; object-fit: cover; object-position: center; }
+.web-media { width: fit-content; max-width: min(900px,100%); margin: 54px 0; padding: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 24px 42px 24px 42px; background: var(--mist); box-shadow: 9px 9px 0 var(--paper-deep); }
+.web-media img { display: block; width: auto; max-width: 100%; height: auto; max-height: 860px; border-radius: 14px 28px 14px 28px; object-fit: contain; }
 .embedded-pdf { margin: 54px 0; padding: 16px; border: 1px solid var(--line); border-radius: 24px 42px 24px 42px; background: var(--mist); }
 .embedded-pdf-label { margin: 0 0 12px; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .embedded-pdf-frame { display: block; width: 100%; min-height: 82vh; border: 0; border-radius: 14px 28px 14px 28px; background: var(--paper-light); }
@@ -127,7 +127,7 @@ p { margin: 10px 0; }
   .current-issue { grid-template-areas: "cover" "copy" "actions"; grid-template-columns: 1fr; gap: 28px; margin: 38px 0; padding: 18px; border-radius: 22px 42px 22px 42px; }.current-cover { min-height: 210px; }.issue-actions { justify-content: flex-start; }
   .archive-main { padding-top: 56px; padding-bottom: 56px; }.article-intro { grid-template-columns: 1fr; gap: 18px; }.issue-action-matrix { max-width: 360px; gap: 8px; }
   .web-section { padding: 40px 0; }.web-row.edition-identity .web-heading,.edition-identity .web-identity-row .web-heading { font-size: 8px; }
-  .reader-cover { margin: 34px 0; border-radius: 28px 10px 28px 10px; box-shadow: 9px 9px 0 var(--peach); }.reader-cover img { aspect-ratio: 16 / 9; }.web-media { margin: 34px 0; padding: 10px; border-radius: 16px 28px 16px 28px; box-shadow: 6px 6px 0 var(--paper-deep); }.web-media img { aspect-ratio: 16 / 9; border-radius: 9px 18px 9px 18px; }.embedded-pdf { margin: 34px 0; padding: 10px; border-radius: 16px 28px 16px 28px; }.embedded-pdf-frame { min-height: 72vh; border-radius: 9px 18px 9px 18px; }
+  .reader-cover { margin: 34px 0; border-radius: 28px 10px 28px 10px; box-shadow: 9px 9px 0 var(--peach); }.reader-cover img { aspect-ratio: 16 / 9; }.web-media { margin: 34px 0; padding: 10px; border-radius: 16px 28px 16px 28px; box-shadow: 6px 6px 0 var(--paper-deep); }.web-media img { max-height: 620px; border-radius: 9px 18px 9px 18px; }.embedded-pdf { margin: 34px 0; padding: 10px; border-radius: 16px 28px 16px 28px; }.embedded-pdf-frame { min-height: 72vh; border-radius: 9px 18px 9px 18px; }
   .magazine-layout { grid-template-columns: 1fr; gap: 32px; margin-top: 36px; }.issue-discovery { margin-left: -24px; margin-right: -24px; padding: 24px; position: static; border-radius: 0; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; padding: 18px; }.archive-links { align-items: flex-start; }.site-footer { flex-direction: column; }
 }
