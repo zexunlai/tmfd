@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(root, '_site');
-const publishable = ['index.html', 'assets', 'archive', 'issues', 'legal', 'read'];
+const publishable = ['about', 'index.html', 'assets', 'archive', 'issues', 'legal', 'read'];
 const execFileAsync = promisify(execFile);
 
 const titleFromSlug = (slug) => slug
@@ -22,42 +22,55 @@ const normalizeText = (value) => value
 
 const matches = (source, terms) => terms.filter((term) => source.includes(normalizeText(term))).length;
 
-const categories = [
-  { name: 'Music & Listening', terms: ['music', 'listening', 'sound', 'rhythm', 'arrangement', 'instrumental', 'song', 'album', 'artist', '演奏', '聲音', '節奏', '編曲'] },
-  { name: 'Culture & Scenes', terms: ['culture', 'scene', 'community', 'festival', 'club', 'live', 'audience', '文化', '社群', '現場'] },
-  { name: 'Industry & Economics', terms: ['financial', 'finance', 'revenue', 'royalty', 'platform', 'streaming', 'label', 'market', 'industry', '財務', '版稅', '串流', '產業'] },
-  { name: 'Technology & Discovery', terms: ['algorithm', 'data', 'ai', 'discovery', 'recommendation', 'digital', 'technology', '演算法', '資料', '推薦', '科技'] },
-  { name: 'Criticism & Essays', terms: ['criticism', 'critic', 'review', 'essay', 'aesthetic', 'analysis', '評論', '樂評', '美學', '分析'] }
+// This deliberately compact, extensible vocabulary starts from the broad and
+// overlapping genres in Wikipedia's "List of music genres and styles". Each
+// issue receives one or two genres; no unbounded editorial tag taxonomy is shown.
+const genreRules = [
+  { name: 'Alternative', terms: ['alternative', 'indie rock', 'shoegaze', 'dream pop', '另類'] },
+  { name: 'Ambient', terms: ['ambient', 'drone', '氛圍', '環境音樂'] },
+  { name: 'Blues', terms: ['blues', '藍調'] },
+  { name: 'Classical', terms: ['classical music', 'orchestra', 'symphony', 'opera', '古典音樂', '交響'] },
+  { name: 'Country', terms: ['country music', 'bluegrass', '鄉村音樂'] },
+  { name: 'Dance', terms: ['dance music', 'disco', 'dance-pop', '舞曲', '迪斯可'] },
+  { name: 'Electronic', terms: ['electronic music', 'electronica', 'synth', '電子音樂', '合成器'] },
+  { name: 'Experimental', terms: ['experimental', 'avant-garde', 'noise music', '實驗音樂', '前衛', '噪音音樂'] },
+  { name: 'Folk', terms: ['folk music', 'singer-songwriter', '民謠', '傳統音樂'] },
+  { name: 'Hip-hop', terms: ['hip-hop', 'hip hop', 'rap', '饒舌', '嘻哈'] },
+  { name: 'House', terms: ['house music', 'deep house', 'tech house', '浩室'] },
+  { name: 'Instrumental', terms: ['instrumental', '器樂', '純音樂'] },
+  { name: 'Jazz', terms: ['jazz', 'bebop', 'swing', '爵士'] },
+  { name: 'Metal', terms: ['metal music', 'heavy metal', 'black metal', '金屬'] },
+  { name: 'Pop', terms: ['pop music', 'k-pop', 'j-pop', 'mandopop', '流行音樂', '華語流行'] },
+  { name: 'Punk', terms: ['punk', 'hardcore', '龐克'] },
+  { name: 'R&B / Soul', terms: ['r&b', 'rnb', 'rhythm and blues', 'soul music', '靈魂樂'] },
+  { name: 'Reggae', terms: ['reggae', 'ska', 'dub', '雷鬼'] },
+  { name: 'Rock', terms: ['rock music', 'rock band', '搖滾'] },
+  { name: 'Techno', terms: ['techno', 'industrial techno', 'techno 音樂'] },
+  { name: 'Traditional / World', terms: ['world music', 'traditional music', 'gamelan', '民俗音樂', '世界音樂'] }
 ];
 
-const tagRules = [
-  { name: 'Typography', terms: ['typography', 'type specimen', 'wordmark', '字體', '排版'] },
-  { name: 'Listening', terms: ['listening', 'listen', '聆聽'] },
-  { name: 'Arrangement', terms: ['arrangement', '編曲'] },
-  { name: 'Performance', terms: ['performance', 'instrumental', '演奏', '器樂'] },
-  { name: 'Publishing', terms: ['publisher', 'publication', 'editor', '出版', '編輯'] },
-  { name: 'Artists', terms: ['artist', 'musician', 'band', 'singer', '音樂人', '樂團', '歌手'] },
-  { name: 'Albums', terms: ['album', 'record', 'release', '專輯', '發行'] },
-  { name: 'Live Music', terms: ['festival', 'concert', 'live', 'tour', '現場', '音樂節', '巡演'] },
-  { name: 'Streaming', terms: ['streaming', 'playlist', 'platform', '串流', '播放清單'] },
-  { name: 'Music Business', terms: ['financial', 'revenue', 'royalty', 'label', 'finance', '財務', '版稅', '唱片公司'] },
-  { name: 'Technology', terms: ['algorithm', 'data', 'ai', 'digital', 'technology', '演算法', '資料', '科技'] },
-  { name: 'Criticism', terms: ['criticism', 'review', 'essay', '評論', '樂評'] }
-];
+const genericSearchTerms = new Set([
+  'music', 'musical', 'song', 'songs', 'album', 'albums', 'artist', 'artists', 'ticket', 'tickets', 'buy', 'purchase', 'shop', 'store', 'merch', 'merchandise', 'event', 'events', 'listen', 'listening', 'audio', 'sound', 'the', 'and', 'with', 'from', 'this', 'that', 'for', 'are', 'was', 'you', 'your', 'our', 'their', 'music', '音樂', '歌曲', '專輯', '購票', '票券', '買', '購買', '商品', '周邊', '演出', '活動', '聆聽', '聲音', '這個', '那個', '我們', '他們', '以及'
+]);
+
+const hiddenSearchTerms = (sourceText) => {
+  const latin = sourceText.match(/[\p{Script=Latin}][\p{Script=Latin}\d&'’-]{2,}/gu) || [];
+  const han = sourceText.match(/[\p{Script=Han}]{2,12}/gu) || [];
+  return [...new Set([...latin, ...han].map(normalizeText).filter((term) => {
+    if (genericSearchTerms.has(term)) return false;
+    const hasHan = /\p{Script=Han}/u.test(term);
+    return hasHan ? term.length >= 2 : term.length >= 3;
+  }))].slice(0, 220);
+};
 
 const issueMetadata = (title, sourceText) => {
   const source = normalizeText(`${title} ${sourceText}`);
-  const rankedCategories = categories
-    .map((category) => ({ ...category, score: matches(source, category.terms) }))
+  const rankedGenres = genreRules
+    .map((genre) => ({ ...genre, score: matches(source, genre.terms) }))
     .sort((a, b) => b.score - a.score);
-  const category = rankedCategories[0]?.score ? rankedCategories[0].name : 'Music & Culture';
-  const tags = tagRules
-    .map((tag) => ({ ...tag, score: matches(source, tag.terms) }))
-    .filter((tag) => tag.score)
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-    .slice(0, 5)
-    .map((tag) => tag.name);
-  if (!tags.length) tags.push('Independent Music');
+  const genres = rankedGenres.filter((genre) => genre.score).slice(0, 2).map((genre) => genre.name);
+  // A genre remains mandatory even when a PDF makes no explicit genre claim.
+  if (!genres.length) genres.push('Experimental');
 
   const sentences = sourceText
     .replace(/\s+/g, ' ')
@@ -65,9 +78,9 @@ const issueMetadata = (title, sourceText) => {
     .map((sentence) => sentence.trim());
   const excerpt = sentences
     .filter((sentence) => sentence.length >= 35 && sentence.length <= 230)
-    .find((sentence) => !/(tmfd|type proof|not approved|type specimen)/i.test(sentence))
-    || `A TMFD issue about ${category.toLowerCase()}.`;
-  return { category, tags, excerpt };
+    .find((sentence) => !/(tmfd|task force|cover.line|between the parts|type proof|not approved|type specimen)/i.test(sentence))
+    || `A TMFD issue about ${genres.join(' and ').toLowerCase()}.`;
+  return { genres, excerpt, searchTerms: hiddenSearchTerms(`${title} ${sourceText}`) };
 };
 
 const formatDate = (date) => new Intl.DateTimeFormat('en', {
@@ -134,7 +147,7 @@ const renderReadingItem = (item) => {
 // an external service. The PDF remains available as the layout-faithful original.
 const buildReadingEdition = async (sourcePdf) => {
   const { stdout } = await execFileAsync('pdftohtml', [
-    '-xml', '-stdout', '-hidden', sourcePdf
+    '-xml', '-stdout', '-hidden', '-i', sourcePdf
   ], { maxBuffer: 32 * 1024 * 1024 });
 
   const fontSizes = new Map(
@@ -228,47 +241,54 @@ const issueFolder = path.join(root, 'issues');
 let filenames = [];
 try { filenames = await readdir(issueFolder); } catch (_) { /* First issue has not been added yet. */ }
 
-const stems = new Set(
-  filenames
-    .filter((name) => name.endsWith('.html') || name.endsWith('.pdf'))
-    .map((name) => name.replace(/\.(html|pdf)$/, ''))
-);
-const issues = [];
-for (const stem of stems) {
-  const match = stem.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
+const issueGroups = new Map();
+for (const filename of filenames) {
+  const match = filename.match(/^(\d{4}-\d{2}-\d{2})-(.+?)(?:\.(en|zh))?\.(pdf|html)$/);
   if (!match) continue;
-
-  const [, date, slug] = match;
-  const hasHtml = filenames.includes(`${stem}.html`);
-  const hasPdf = filenames.includes(`${stem}.pdf`);
-  let web = null;
+  const [, date, slug, language = 'en', format] = match;
+  const id = `${date}-${slug}`;
+  if (!issueGroups.has(id)) issueGroups.set(id, { id, date, slug, files: { en: {}, zh: {} } });
+  issueGroups.get(id).files[language][format] = filename;
+}
+const issues = [];
+for (const group of issueGroups.values()) {
+  const { id, date, slug } = group;
+  const languages = {};
   let sourceText = titleFromSlug(slug);
 
-  if (hasPdf) {
-    try {
-      const conversion = await buildReadingEdition(path.join(issueFolder, `${stem}.pdf`));
-      sourceText += ` ${conversion.text}`;
-      if (conversion.edition) {
-        const folder = path.join(destination, 'reader-content');
-        await mkdir(folder, { recursive: true });
-        await writeFile(path.join(folder, `${stem}.html`), conversion.edition);
-        web = `reader-content/${stem}.html`;
+  for (const language of ['en', 'zh']) {
+    const files = group.files[language];
+    if (!files.pdf && !files.html) continue;
+    let web = null;
+    if (files.pdf) {
+      try {
+        const conversion = await buildReadingEdition(path.join(issueFolder, files.pdf));
+        sourceText += ` ${conversion.text}`;
+        if (conversion.edition) {
+          const folder = path.join(destination, 'reader-content');
+          await mkdir(folder, { recursive: true });
+          await writeFile(path.join(folder, `${id}.${language}.html`), conversion.edition);
+          web = `reader-content/${id}.${language}.html`;
+        }
+      } catch (error) {
+        console.warn(`Could not make a responsive reading edition for ${id} (${language}): ${error.message}`);
       }
-    } catch (error) {
-      console.warn(`Could not make a responsive reading edition for ${stem}: ${error.message}`);
     }
+    languages[language] = {
+      html: files.html ? `issues/${files.html}` : null,
+      pdf: files.pdf ? `issues/${files.pdf}` : null,
+      web
+    };
   }
 
   const metadata = issueMetadata(titleFromSlug(slug), sourceText);
 
   issues.push({
-    id: stem,
+    id,
     date,
     dateLabel: formatDate(date),
     title: titleFromSlug(slug),
-    html: hasHtml ? `issues/${stem}.html` : null,
-    pdf: hasPdf ? `issues/${stem}.pdf` : null,
-    web,
+    languages,
     ...metadata
   });
 }

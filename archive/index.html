@@ -15,7 +15,7 @@
       <nav aria-label="Primary navigation">
         <a href="../">Home</a>
         <a aria-current="page" href="./">Magazine</a>
-        <a href="../#about">About</a>
+        <a href="../about/">About</a>
       </nav>
     </header>
 
@@ -23,16 +23,21 @@
       <p class="eyebrow">TMFD publication</p>
       <h1>Magazine</h1>
       <p class="lede">Every issue, gathered in one place.</p>
-      <section class="issue-discovery" aria-labelledby="discover-title">
-        <h2 id="discover-title" class="sr-only">Find an issue</h2>
-        <label class="search-label" for="issue-search">Search the magazine</label>
-        <input id="issue-search" class="issue-search" type="search" placeholder="Search title, topic or tag" autocomplete="off">
-        <div id="category-filters" class="filter-group" aria-label="Filter by category"></div>
-        <div id="tag-filters" class="filter-group" aria-label="Filter by tag"></div>
-        <p id="result-count" class="result-count" aria-live="polite"></p>
-      </section>
-      <div id="archive-list" class="archive-list" aria-live="polite">
-        <p>Loading issues…</p>
+      <div class="magazine-layout">
+        <aside class="issue-discovery" aria-labelledby="discover-title">
+          <h2 id="discover-title" class="sr-only">Find an issue</h2>
+          <label class="search-label" for="issue-search">Search the magazine</label>
+          <input id="issue-search" class="issue-search" type="search" placeholder="Artist, brand or subject" autocomplete="off">
+          <p class="search-help">Use two Chinese characters or three Latin letters. General terms such as “music” and “tickets” are excluded.</p>
+          <p class="search-label">Choose one genre</p>
+          <div id="genre-filters" class="filter-group" aria-label="Filter by genre"></div>
+        </aside>
+        <section class="magazine-results" aria-label="Magazine results">
+          <p id="result-count" class="result-count" aria-live="polite"></p>
+          <div id="archive-list" class="archive-list" aria-live="polite">
+            <p>Loading issues…</p>
+          </div>
+        </section>
       </div>
     </main>
 

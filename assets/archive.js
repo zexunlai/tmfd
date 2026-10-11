@@ -1,4 +1,5 @@
 (() => {
+  const genericTerms = new Set(['music', 'musical', 'song', 'songs', 'album', 'albums', 'artist', 'artists', 'ticket', 'tickets', 'buy', 'purchase', 'shop', 'store', 'merch', 'merchandise', 'event', 'events', 'listen', 'listening', 'audio', 'sound', '音樂', '歌曲', '專輯', '購票', '票券', '買', '購買', '商品', '周邊', '演出', '活動', '聆聽', '聲音']);
   const normalize = (value) => value.toLocaleLowerCase().normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   const distance = (left, right) => {
@@ -19,6 +20,11 @@
     for (const character of haystack) if (character === needle[index]) index += 1;
     return index === needle.length;
   };
+  const validTerms = (query) => normalize(query).split(' ').filter((term) => {
+    if (!term || genericTerms.has(term)) return false;
+    const isChinese = /\p{Script=Han}/u.test(term);
+    return isChinese ? term.length >= 2 : term.length >= 3;
+  });
   const wordScore = (term, word) => {
     if (word === term) return 100;
     if (word.startsWith(term) || term.startsWith(word)) return 75;
@@ -27,10 +33,12 @@
     return Math.abs(term.length - word.length) <= allowance && distance(term, word) <= allowance ? 45 : 0;
   };
   const searchScore = (issue, query) => {
-    if (!query) return 1;
-    const searchable = normalize([issue.title, issue.category, ...(issue.tags || []), issue.excerpt].join(' '));
+    if (!query.trim()) return 1;
+    const terms = validTerms(query);
+    if (!terms.length) return 0;
+    const searchable = normalize([issue.title, ...(issue.genres || []), ...(issue.searchTerms || [])].join(' '));
     const words = searchable.split(' ');
-    return normalize(query).split(' ').reduce((total, term) => {
+    return terms.reduce((total, term) => {
       const score = searchable.includes(term) ? 100 : Math.max(...words.map((word) => wordScore(term, word)));
       return score ? total + score : 0;
     }, 0);
@@ -49,13 +57,23 @@
   if (year) year.textContent = new Date().getFullYear();
   const list = document.getElementById('archive-list');
   const search = document.getElementById('issue-search');
-  const categoryFilters = document.getElementById('category-filters');
-  const tagFilters = document.getElementById('tag-filters');
+  const genreFilters = document.getElementById('genre-filters');
   const resultCount = document.getElementById('result-count');
-  let selectedCategory = '';
-  let selectedTag = '';
+  let selectedGenre = '';
   let issues = [];
 
+  const addLink = (links, issue, language, label, pdf = false) => {
+    const edition = issue.languages?.[language];
+    if (!edition || !(pdf ? edition.pdf : (edition.web || edition.html))) return;
+    const link = document.createElement('a');
+    link.href = pdf ? `../${edition.pdf}` : `../read/?issue=${encodeURIComponent(issue.id)}&lang=${language}`;
+    link.textContent = label;
+    if (pdf) {
+      link.target = '_blank';
+      link.rel = 'noopener';
+    }
+    links.append(link);
+  };
   const renderIssue = (issue) => {
     const item = document.createElement('article');
     item.className = 'archive-item';
@@ -67,60 +85,47 @@
     title.textContent = issue.title;
     const summary = document.createElement('p');
     summary.className = 'issue-summary';
-    summary.textContent = issue.excerpt || issue.category;
-    const tags = document.createElement('div');
-    tags.className = 'issue-tags';
-    [issue.category, ...(issue.tags || [])].forEach((label) => {
-      const tag = document.createElement('span');
-      tag.className = 'issue-tag';
-      tag.textContent = label;
-      tags.append(tag);
+    summary.textContent = issue.excerpt;
+    const genres = document.createElement('div');
+    genres.className = 'issue-genres';
+    (issue.genres || []).forEach((label) => {
+      const genre = document.createElement('span');
+      genre.className = 'issue-genre';
+      genre.textContent = label;
+      genres.append(genre);
     });
-    details.append(date, title, summary, tags);
+    details.append(date, title, summary, genres);
 
     const links = document.createElement('div');
     links.className = 'archive-links';
-    const read = document.createElement('a');
-    read.href = `../read/?issue=${encodeURIComponent(issue.id)}`;
-    read.textContent = 'Read online';
-    links.append(read);
-    if (issue.pdf) {
-      const pdf = document.createElement('a');
-      pdf.href = `../${issue.pdf}`;
-      pdf.target = '_blank';
-      pdf.rel = 'noopener';
-      pdf.textContent = 'Open PDF';
-      links.append(pdf);
-    }
+    addLink(links, issue, 'en', 'Read online');
+    addLink(links, issue, 'zh', 'Read online (中文)');
+    addLink(links, issue, 'en', 'Open PDF', true);
+    addLink(links, issue, 'zh', 'Open PDF (中文)', true);
     item.append(details, links);
     return item;
   };
-
   const render = () => {
     const query = search.value;
     const results = issues
       .map((issue) => ({ issue, score: searchScore(issue, query) }))
-      .filter(({ issue, score }) => score && (!selectedCategory || issue.category === selectedCategory)
-        && (!selectedTag || issue.tags?.includes(selectedTag)))
+      .filter(({ issue, score }) => score && (!selectedGenre || issue.genres?.includes(selectedGenre)))
       .sort((left, right) => query ? right.score - left.score || right.issue.date.localeCompare(left.issue.date) : right.issue.date.localeCompare(left.issue.date));
     list.replaceChildren(...(results.length ? results.map(({ issue }) => renderIssue(issue)) : (() => {
       const message = document.createElement('p');
       message.className = 'reader-fallback';
-      message.textContent = 'No issues match this search yet.';
+      message.textContent = query.trim() && !validTerms(query).length
+        ? 'Use two Chinese characters or three Latin letters. General terms are not indexed.'
+        : 'No issues match this search yet.';
       return [message];
     })()));
     resultCount.textContent = `${results.length} ${results.length === 1 ? 'issue' : 'issues'} found`;
   };
   const renderFilters = () => {
-    const categories = [...new Set(issues.map((issue) => issue.category))].sort();
-    const tags = [...new Set(issues.flatMap((issue) => issue.tags || []))].sort();
-    categoryFilters.replaceChildren(
-      createFilterButton('All categories', !selectedCategory, () => { selectedCategory = ''; renderFilters(); render(); }),
-      ...categories.map((category) => createFilterButton(category, selectedCategory === category, () => { selectedCategory = selectedCategory === category ? '' : category; renderFilters(); render(); }))
-    );
-    tagFilters.replaceChildren(
-      createFilterButton('All tags', !selectedTag, () => { selectedTag = ''; renderFilters(); render(); }),
-      ...tags.map((tag) => createFilterButton(tag, selectedTag === tag, () => { selectedTag = selectedTag === tag ? '' : tag; renderFilters(); render(); }))
+    const genres = [...new Set(issues.flatMap((issue) => issue.genres || []))].sort();
+    genreFilters.replaceChildren(
+      createFilterButton('All genres', !selectedGenre, () => { selectedGenre = ''; renderFilters(); render(); }),
+      ...genres.map((genre) => createFilterButton(genre, selectedGenre === genre, () => { selectedGenre = selectedGenre === genre ? '' : genre; renderFilters(); render(); }))
     );
   };
 
@@ -141,4 +146,3 @@
     }
   })();
 })();
-

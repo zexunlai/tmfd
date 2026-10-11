@@ -15,7 +15,7 @@ body {
   margin: 0;
   background: var(--white);
   color: var(--black);
-  font-family: Arial, sans-serif;
+  font-family: Arial, "Microsoft JhengHei", sans-serif;
   font-size: 14pt;
   line-height: 1.6;
 }
@@ -37,7 +37,7 @@ nav a { text-decoration: none; border-bottom: 2px solid transparent; }
 nav a:hover, nav a[aria-current="page"] { border-color: var(--orange); }
 .masthead { padding-top: 84px; padding-bottom: 84px; border-bottom: 1px solid var(--gray); }
 .eyebrow { margin: 0 0 15px; font-size: 10pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-h1, h2 { font-family: Georgia, serif; line-height: 1.08; }
+h1, h2 { font-family: Georgia, SimSun, serif; line-height: 1.08; }
 h1 { margin: 0 0 20px; font-size: clamp(48px, 7vw, 82px); font-weight: 700; letter-spacing: -0.045em; }
 h2 { margin: 0 0 15px; font-size: clamp(32px, 4vw, 48px); font-weight: 700; letter-spacing: -0.035em; }
 p { margin: 10px 0; }
@@ -56,12 +56,15 @@ p { margin: 10px 0; }
 .site-footer { display: flex; justify-content: space-between; gap: 20px; padding-top: 28px; padding-bottom: 28px; background: var(--gray-light); font-size: 10pt; }
 .site-footer a { text-underline-offset: 3px; }
 .archive-main { padding-top: 84px; padding-bottom: 84px; }
-.archive-list { margin-top: 55px; border-top: 1px solid var(--black); }
-.issue-discovery { margin-top: 48px; padding: 28px; background: var(--cream); border-top: 2px solid var(--orange); }
+.magazine-layout { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 52px; margin-top: 48px; align-items: start; }
+.issue-discovery { padding: 24px; background: var(--cream); border-top: 2px solid var(--orange); position: sticky; top: 24px; }
+.magazine-results { min-width: 0; }
+.archive-list { border-top: 1px solid var(--black); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .search-label { display: block; margin-bottom: 8px; font-size: 10pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .issue-search { width: 100%; min-height: 52px; padding: 10px 14px; border: 2px solid var(--black); border-radius: 0; background: var(--white); color: var(--black); font: inherit; }
 .issue-search:focus { outline: 3px solid var(--orange); outline-offset: 3px; }
+.search-help { margin: 12px 0 24px; font-size: 10pt; line-height: 1.45; }
 .filter-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .filter-button { padding: 7px 10px; border: 1px solid var(--black); border-radius: 0; background: var(--white); color: var(--black); font: inherit; font-size: 10pt; line-height: 1.2; cursor: pointer; }
 .filter-button:hover, .filter-button.is-active { background: var(--orange); color: var(--white); }
@@ -84,18 +87,23 @@ p { margin: 10px 0; }
 .web-copy { margin: 0; max-width: 690px; font-size: 14pt; line-height: 1.6; }
 .web-eyebrow { margin: 0; font-size: 10pt; font-weight: 700; letter-spacing: .12em; line-height: 1.35; text-transform: uppercase; }
 .reader-fallback { margin: 40px 0; }
-.archive-item { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px 0; border-bottom: 1px solid var(--gray); }
+.archive-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 245px); gap: 28px; align-items: start; padding: 28px 0; border-bottom: 1px solid var(--gray); }
 .archive-item h2 { font-size: 24pt; margin-bottom: 6px; }
 .archive-item p { font-size: 12pt; }
 .issue-summary { max-width: 720px; }
-.issue-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.issue-tag { padding: 4px 7px; border: 1px solid var(--black); font-size: 9pt; font-weight: 700; line-height: 1.2; }
-.archive-links { display: flex; gap: 20px; font-size: 11pt; font-weight: 700; white-space: nowrap; }
+.issue-genres { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.issue-genre { padding: 4px 7px; border: 1px solid var(--black); font-size: 9pt; font-weight: 700; line-height: 1.2; }
+.archive-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; font-size: 11pt; font-weight: 700; }
 .archive-links a { text-underline-offset: 4px; }
+.about-main { max-width: 840px; padding-top: 84px; padding-bottom: 84px; }
+.about-section { padding: 44px 0; border-top: 1px solid var(--gray); }
+.about-section h2 { font-size: 28pt; }
 .legal-main { max-width: 840px; padding-top: 84px; padding-bottom: 84px; }
 .legal-section { padding: 44px 0; border-top: 1px solid var(--gray); }
 .legal-section h2 { font-size: 28pt; }
 .legal-section p { max-width: 760px; }
+.translation { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--gray); }
+.translation h3 { margin: 0 0 15px; font-family: SimSun, serif; font-size: 24pt; line-height: 1.08; }
 @media (max-width: 680px) {
   .site-header, main, .site-footer { padding-left: 24px; padding-right: 24px; }
   .site-header { min-height: 80px; }
@@ -106,8 +114,10 @@ p { margin: 10px 0; }
   .issue-reader { min-height: 70vh; }
   .web-section { padding: 40px 0; }
   .web-columns { grid-template-columns: 1fr; gap: 28px; }
-  .issue-discovery { margin-left: -24px; margin-right: -24px; padding: 24px; }
+  .magazine-layout { grid-template-columns: 1fr; gap: 32px; margin-top: 36px; }
+  .issue-discovery { margin-left: -24px; margin-right: -24px; padding: 24px; position: static; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; }
+  .archive-links { justify-content: flex-start; }
   .site-footer { flex-direction: column; }
 }
 

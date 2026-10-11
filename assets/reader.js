@@ -5,8 +5,9 @@
   const title = document.getElementById('issue-title');
   const date = document.getElementById('issue-date');
   const content = document.getElementById('reader-content');
-  const openPdf = document.getElementById('open-pdf');
+  const actions = document.getElementById('reader-actions');
   const issueId = new URLSearchParams(window.location.search).get('issue');
+  const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
 
   try {
     const response = await fetch('../data/issues.json');
@@ -14,28 +15,40 @@
     const issues = await response.json();
     const issue = issues.find((entry) => entry.id === issueId);
     if (!issue) throw new Error('Issue not found');
+    const language = issue.languages?.[requestedLanguage] ? requestedLanguage : (issue.languages?.en ? 'en' : 'zh');
+    const edition = issue.languages?.[language];
+    if (!edition) throw new Error('Language edition not found');
 
     title.textContent = issue.title;
-    date.textContent = issue.dateLabel;
-    if (issue.web) {
-      const edition = await fetch(`../${issue.web}`);
-      if (!edition.ok) throw new Error('Reading edition unavailable');
+    date.textContent = `${issue.dateLabel} · ${language === 'zh' ? '中文' : 'English'}`;
+    if (edition.web) {
+      const response = await fetch(`../${edition.web}`);
+      if (!response.ok) throw new Error('Reading edition unavailable');
       // The fragment is generated during the local/GitHub build from escaped PDF text.
-      content.innerHTML = await edition.text();
-    } else if (issue.html) {
+      content.innerHTML = await response.text();
+    } else if (edition.html) {
       const frame = document.createElement('iframe');
       frame.className = 'issue-reader';
-      frame.src = `../${issue.html}`;
+      frame.src = `../${edition.html}`;
       frame.title = `${issue.title} — TMFD`;
       content.append(frame);
     } else {
       throw new Error('Issue has no readable source');
     }
 
-    if (issue.pdf) {
-      openPdf.href = `../${issue.pdf}`;
-      openPdf.hidden = false;
-    }
+    const configure = (id, code, label, pdf = false) => {
+      const link = document.getElementById(id);
+      const alternative = issue.languages?.[code];
+      if (!alternative || !(pdf ? alternative.pdf : (alternative.web || alternative.html))) return;
+      link.href = pdf ? `../${alternative.pdf}` : `?issue=${encodeURIComponent(issue.id)}&lang=${code}`;
+      link.textContent = label;
+      link.hidden = false;
+    };
+    configure('read-online-en', 'en', 'Read online');
+    configure('read-online-zh', 'zh', 'Read online (中文)');
+    configure('open-pdf-en', 'en', 'Open PDF', true);
+    configure('open-pdf-zh', 'zh', 'Open PDF (中文)', true);
+    actions.hidden = false;
   } catch (_) {
     title.textContent = 'Issue unavailable';
     content.replaceChildren();

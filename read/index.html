@@ -15,7 +15,7 @@
       <nav aria-label="Primary navigation">
         <a href="../">Home</a>
         <a href="../archive/">Magazine</a>
-        <a href="../#about">About</a>
+        <a href="../about/">About</a>
       </nav>
     </header>
 
@@ -26,7 +26,12 @@
           <h1 id="issue-title">Loading issue…</h1>
           <p id="issue-date" class="lede"></p>
         </div>
-        <a id="open-pdf" class="button button-secondary" href="#" hidden target="_blank" rel="noopener">Open PDF</a>
+        <div id="reader-actions" class="issue-actions" hidden>
+          <a id="read-online-en" class="button button-primary" href="#" hidden>Read online</a>
+          <a id="read-online-zh" class="button button-primary" href="#" hidden>Read online (中文)</a>
+          <a id="open-pdf-en" class="button button-secondary" href="#" hidden target="_blank" rel="noopener">Open PDF</a>
+          <a id="open-pdf-zh" class="button button-secondary" href="#" hidden target="_blank" rel="noopener">Open PDF (中文)</a>
+        </div>
       </div>
       <div id="reader-content" aria-live="polite"></div>
     </main>

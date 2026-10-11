@@ -11,29 +11,26 @@
 
     document.getElementById('current-title').textContent = current.title;
     document.getElementById('current-date').textContent = current.dateLabel;
-    document.getElementById('current-description').textContent = current.excerpt || current.category;
-    const tags = document.getElementById('current-tags');
-    tags.replaceChildren(...[current.category, ...(current.tags || [])].map((label) => {
-      const tag = document.createElement('span');
-      tag.className = 'issue-tag';
-      tag.textContent = label;
-      return tag;
+    document.getElementById('current-description').textContent = current.excerpt || current.genres?.join(', ') || '';
+    const genres = document.getElementById('current-genres');
+    genres.replaceChildren(...(current.genres || []).map((label) => {
+      const genre = document.createElement('span');
+      genre.className = 'issue-genre';
+      genre.textContent = label;
+      return genre;
     }));
-    const read = document.getElementById('read-current');
-    const download = document.getElementById('download-current');
-    read.href = `read/?issue=${encodeURIComponent(current.id)}`;
-    read.textContent = 'Read online';
-    read.target = '';
-
-    if (current.pdf) {
-      download.href = current.pdf;
-      download.textContent = 'Open PDF';
-      download.target = '_blank';
-      download.rel = 'noopener';
-      download.hidden = false;
-    } else {
-      download.hidden = true;
-    }
+    const configure = (id, language, label, pdf = false) => {
+      const link = document.getElementById(id);
+      const edition = current.languages?.[language];
+      if (!edition || !(pdf ? edition.pdf : (edition.web || edition.html))) return;
+      link.href = pdf ? edition.pdf : `read/?issue=${encodeURIComponent(current.id)}&lang=${language}`;
+      link.textContent = label;
+      link.hidden = false;
+    };
+    configure('read-current-en', 'en', 'Read online');
+    configure('read-current-zh', 'zh', 'Read online (中文)');
+    configure('open-current-en', 'en', 'Open PDF', true);
+    configure('open-current-zh', 'zh', 'Open PDF (中文)', true);
     document.getElementById('current-actions').hidden = false;
   } catch (_) {
     document.getElementById('current-title').textContent = 'The first issue is coming soon.';
