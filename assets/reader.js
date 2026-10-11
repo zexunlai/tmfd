@@ -48,6 +48,25 @@
       if (firstSection) firstSection.after(cover);
     }
 
+    const showPdf = (pdf, label) => {
+      let viewer = content.querySelector('#embedded-pdf');
+      if (!viewer) {
+        viewer = document.createElement('section');
+        viewer.id = 'embedded-pdf';
+        viewer.className = 'embedded-pdf';
+        const heading = document.createElement('p');
+        heading.className = 'embedded-pdf-label';
+        const frame = document.createElement('iframe');
+        frame.className = 'embedded-pdf-frame';
+        frame.title = `${issue.title} — PDF`;
+        viewer.append(heading, frame);
+        content.append(viewer);
+      }
+      viewer.querySelector('.embedded-pdf-label').textContent = label;
+      viewer.querySelector('.embedded-pdf-frame').src = `../${pdf}#view=FitH`;
+      viewer.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    };
+
     const configure = (id, code, label, pdf = false) => {
       const link = document.getElementById(id);
       const alternative = issue.languages?.[code];
@@ -64,6 +83,12 @@
         link.tabIndex = -1;
       } else {
         link.href = pdf ? `../${alternative.pdf}` : `?issue=${encodeURIComponent(issue.id)}&lang=${code}`;
+        if (pdf) {
+          link.addEventListener('click', (event) => {
+            event.preventDefault();
+            showPdf(alternative.pdf, label);
+          });
+        }
       }
       link.textContent = label;
       link.hidden = false;

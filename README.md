@@ -22,7 +22,7 @@ The two PDFs become one issue when both exist, but either language can be publis
 
 ## PDF-only folder structure
 
-The first page of each uploaded PDF becomes the horizontal cover image on Home, Magazine and the reader. Images embedded in the PDF are extracted and inserted after their original PDF page in the reading edition.
+The first page of each uploaded PDF becomes the horizontal cover image on Home, Magazine and the reader. Images embedded in the PDF are extracted and inserted after their original PDF page in the reading edition; wide grayscale TMFD wordmark panels are excluded automatically. The Open PDF buttons display the selected PDF inside the reading page.
 
 Only use these two folders for weekly publishing:
 

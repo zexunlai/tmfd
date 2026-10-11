@@ -110,11 +110,21 @@ const assetNumber = (value) => String(value).padStart(3, '0');
 // page in the responsive edition. Nothing extra needs to be uploaded.
 const embeddedPdfImages = async (sourcePdf) => {
   const { stdout } = await execFileAsync('pdfimages', ['-list', sourcePdf]);
-  return [...stdout.matchAll(/^\s*(\d+)\s+(\d+)\s+image\b/gm)].map(([, page, index]) => ({
+  return [...stdout.matchAll(/^\s*(\d+)\s+(\d+)\s+image\s+(\d+)\s+(\d+)\s+(\S+)/gm)].map(([, page, index, width, height, color]) => ({
     page: Number(page),
-    index: Number(index)
+    index: Number(index),
+    width: Number(width),
+    height: Number(height),
+    color
   }));
 };
+
+// The PDF proof carries the TMFD wordmark as a wide grayscale image. It is a
+// publication identifier, not editorial artwork, so keep it out of the web
+// edition's inline media while retaining the designated issue cover.
+const isWordmarkPanel = ({ width, height, color }) => (
+  color === 'gray' && height > 0 && width / height > 2.5
+);
 
 const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   const folder = path.join(destination, 'issue-assets', id);
@@ -127,7 +137,7 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   ]);
 
   const mediaByPage = new Map();
-  const images = await embeddedPdfImages(sourcePdf);
+  const images = (await embeddedPdfImages(sourcePdf)).filter((image) => !isWordmarkPanel(image));
   if (images.length) {
     const imageBase = path.join(folder, `${language}-image`);
     await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
