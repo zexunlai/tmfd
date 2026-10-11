@@ -119,9 +119,10 @@ const embeddedPdfImages = async (sourcePdf) => {
   }));
 };
 
-// The PDF proof carries the TMFD wordmark as a wide grayscale image. It is a
-// publication identifier, not editorial artwork, so keep it out of the web
-// edition's inline media while retaining the designated issue cover.
+// The first PDF page is reserved for the designated cover. Its embedded images
+// can include the TMFD wordmark, which is a publication identifier rather than
+// editorial artwork, so none of them belong in the responsive article body.
+// The ratio check also protects against wide wordmark panels used elsewhere.
 const isWordmarkPanel = ({ width, height, color }) => (
   color === 'gray' && height > 0 && width / height > 2.5
 );
@@ -137,7 +138,9 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   ]);
 
   const mediaByPage = new Map();
-  const images = (await embeddedPdfImages(sourcePdf)).filter((image) => !isWordmarkPanel(image));
+  const images = (await embeddedPdfImages(sourcePdf)).filter((image) => (
+    image.page !== 1 && !isWordmarkPanel(image)
+  ));
   if (images.length) {
     const imageBase = path.join(folder, `${language}-image`);
     await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
