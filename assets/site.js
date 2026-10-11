@@ -13,11 +13,11 @@
     document.getElementById('current-description').textContent = current.dateLabel;
     const read = document.getElementById('read-current');
     const download = document.getElementById('download-current');
-    read.href = current.html || current.pdf;
-    read.textContent = current.html ? 'Read online' : 'Open PDF';
-    read.target = current.html ? '' : '_blank';
+    read.href = `read/?issue=${encodeURIComponent(current.id)}`;
+    read.textContent = 'Read online';
+    read.target = '';
 
-    if (current.html && current.pdf) {
+    if (current.pdf) {
       download.href = current.pdf;
       download.textContent = 'Open PDF';
       download.target = '_blank';

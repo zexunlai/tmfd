@@ -24,14 +24,11 @@
 
       const links = document.createElement('div');
       links.className = 'archive-links';
-      if (issue.html || issue.pdf) {
-        const read = document.createElement('a');
-        read.href = `../${issue.html || issue.pdf}`;
-        read.textContent = issue.html ? 'Read online' : 'Open PDF';
-        if (!issue.html) read.target = '_blank';
-        links.append(read);
-      }
-      if (issue.html && issue.pdf) {
+      const read = document.createElement('a');
+      read.href = `../read/?issue=${encodeURIComponent(issue.id)}`;
+      read.textContent = 'Read online';
+      links.append(read);
+      if (issue.pdf) {
         const pdf = document.createElement('a');
         pdf.href = `../${issue.pdf}`;
         pdf.target = '_blank';

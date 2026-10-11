@@ -54,6 +54,12 @@ p { margin: 10px 0; }
 .site-footer { display: flex; justify-content: space-between; gap: 20px; padding-top: 28px; padding-bottom: 28px; background: var(--gray-light); font-size: 10pt; }
 .archive-main { padding-top: 84px; padding-bottom: 84px; }
 .archive-list { margin-top: 55px; border-top: 1px solid var(--black); }
+.reader-main { padding-top: 56px; padding-bottom: 84px; }
+.reader-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding-bottom: 32px; }
+.reader-heading h1 { font-size: clamp(36px, 5vw, 60px); margin-bottom: 10px; }
+.reader-heading .lede { font-size: 14pt; }
+.issue-reader { width: 100%; min-height: 78vh; border: 1px solid var(--gray); background: var(--gray-light); }
+.reader-fallback { margin: 40px 0; }
 .archive-item { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; padding: 28px 0; border-bottom: 1px solid var(--gray); }
 .archive-item h2 { font-size: 24pt; margin-bottom: 6px; }
 .archive-item p { font-size: 12pt; }
@@ -65,6 +71,8 @@ p { margin: 10px 0; }
   nav { gap: 16px; }
   .masthead, .about, .archive-main { padding-top: 56px; padding-bottom: 56px; }
   .current-issue { flex-direction: column; margin-left: -24px; margin-right: -24px; padding: 40px 24px; }
+  .reader-heading { align-items: start; flex-direction: column; }
+  .issue-reader { min-height: 70vh; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; }
   .site-footer { flex-direction: column; }
 }

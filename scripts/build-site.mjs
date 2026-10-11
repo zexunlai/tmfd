@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(root, '_site');
-const publishable = ['index.html', 'assets', 'archive', 'issues'];
+const publishable = ['index.html', 'assets', 'archive', 'issues', 'read'];
 
 const titleFromSlug = (slug) => slug
   .replace(/[-_]+/g, ' ')
@@ -37,6 +37,7 @@ const issues = [...stems]
     const hasHtml = filenames.includes(`${stem}.html`);
     const hasPdf = filenames.includes(`${stem}.pdf`);
     return {
+      id: stem,
       date,
       dateLabel: formatDate(date),
       title: titleFromSlug(slug),
