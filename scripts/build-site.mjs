@@ -24,20 +24,24 @@ const issueFolder = path.join(root, 'issues');
 let filenames = [];
 try { filenames = await readdir(issueFolder); } catch (_) { /* First issue has not been added yet. */ }
 
-const htmlNames = new Set(filenames.filter((name) => name.endsWith('.html')));
-const pdfNames = new Set(filenames.filter((name) => name.endsWith('.pdf')));
-const issues = [...htmlNames]
-  .map((htmlName) => {
-    const stem = htmlName.slice(0, -5);
+const stems = new Set(
+  filenames
+    .filter((name) => name.endsWith('.html') || name.endsWith('.pdf'))
+    .map((name) => name.replace(/\.(html|pdf)$/, ''))
+);
+const issues = [...stems]
+  .map((stem) => {
     const match = stem.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
-    if (!match || !pdfNames.has(`${stem}.pdf`)) return null;
+    if (!match) return null;
     const [, date, slug] = match;
+    const hasHtml = filenames.includes(`${stem}.html`);
+    const hasPdf = filenames.includes(`${stem}.pdf`);
     return {
       date,
       dateLabel: formatDate(date),
       title: titleFromSlug(slug),
-      html: `issues/${htmlName}`,
-      pdf: `issues/${stem}.pdf`
+      html: hasHtml ? `issues/${stem}.html` : null,
+      pdf: hasPdf ? `issues/${stem}.pdf` : null
     };
   })
   .filter(Boolean)

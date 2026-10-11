@@ -4,9 +4,9 @@ Official website for **TMFD — Task Force on Music-related Financial Disclosure
 
 ## Publish a new issue
 
-1. Add these two files to `issues/`, using the same filename stem:
-   - `YYYY-MM-DD-short-title.html`
-   - `YYYY-MM-DD-short-title.pdf`
+1. Add one or both of these files to `issues/`, using the same filename stem:
+   - `YYYY-MM-DD-short-title.pdf` — publishes a PDF-first issue.
+   - `YYYY-MM-DD-short-title.html` — publishes a browser reading version.
 2. Commit and push them to `main`.
 
 GitHub Actions rebuilds the issue index and deploys the refreshed site automatically. The newest issue becomes the homepage feature and every issue appears in the archive.
@@ -14,11 +14,11 @@ GitHub Actions rebuilds the issue index and deploys the refreshed site automatic
 The filename date controls ordering and display. For example:
 
 ```text
-issues/2026-10-18-listening-in-the-city.html
 issues/2026-10-18-listening-in-the-city.pdf
+issues/2026-10-18-listening-in-the-city.html
 ```
 
-Only matching HTML/PDF pairs are published in the archive. Keep issue files self-contained: use relative links for any images or supporting files stored under `issues/`.
+You can publish with either file on its own. When both are present, the site shows a **Read online** link plus a **Download PDF** link. When only a PDF is present, the site offers **Open PDF** and **Download PDF**. Keep any HTML issue self-contained: use relative links for images or supporting files stored under `issues/`.
 
 ## Local preview
 

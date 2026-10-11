@@ -13,8 +13,17 @@
     document.getElementById('current-description').textContent = current.dateLabel;
     const read = document.getElementById('read-current');
     const download = document.getElementById('download-current');
-    read.href = current.html;
-    download.href = current.pdf;
+    read.href = current.html || current.pdf;
+    read.textContent = current.html ? 'Read online' : 'Open PDF';
+    read.target = current.html ? '' : '_blank';
+
+    if (current.pdf) {
+      download.href = current.pdf;
+      download.download = '';
+      download.hidden = false;
+    } else {
+      download.hidden = true;
+    }
     document.getElementById('current-actions').hidden = false;
   } catch (_) {
     document.getElementById('current-title').textContent = 'The first issue is coming soon.';
