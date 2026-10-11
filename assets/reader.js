@@ -62,18 +62,23 @@
     configure('open-pdf-zh', 'zh', 'Open PDF (Chinese)', true);
     actions.hidden = false;
 
-    // Keep the reading choices in the issue itself, alongside its first title,
-    // rather than as a separate, oversized panel above the publication.
+    // The publication identity always has a full line. The compact reading
+    // choices belong beside the article's own cover-line and title information.
     const firstHeadingRow = content.querySelector('.web-heading')?.closest('.web-row');
     if (firstHeadingRow) {
       const section = firstHeadingRow.closest('.web-section');
-      const intro = document.createElement('div');
-      intro.className = 'edition-intro';
-      const title = document.createElement('div');
-      title.className = 'edition-intro-title';
-      firstHeadingRow.before(intro);
-      title.append(firstHeadingRow);
-      intro.append(title, actions);
+      const identity = firstHeadingRow.closest('.web-stack') || firstHeadingRow;
+      const articleRows = [...section.children].filter((child) => child !== identity);
+      if (articleRows.length) {
+        identity.classList.add('edition-identity');
+        const intro = document.createElement('div');
+        intro.className = 'article-intro';
+        const information = document.createElement('div');
+        information.className = 'article-intro-information';
+        information.append(...articleRows);
+        identity.after(intro);
+        intro.append(information, actions);
+      }
     }
   } catch (_) {
     title.textContent = 'Issue unavailable';
