@@ -62,22 +62,20 @@
   let selectedGenre = '';
   let issues = [];
 
-  const addLink = (links, issue, language, label, pdf = false) => {
+  const addLink = (links, issue, language, label) => {
     const edition = issue.languages?.[language];
-    if (!edition || !(pdf ? edition.pdf : (edition.web || edition.html))) return;
+    if (!edition || !(edition.web || edition.html)) return;
     const link = document.createElement('a');
-    link.href = pdf ? `../${edition.pdf}` : `../read/?issue=${encodeURIComponent(issue.id)}&lang=${language}`;
+    link.href = `../read/?issue=${encodeURIComponent(issue.id)}&lang=${language}`;
     link.textContent = label;
-    if (pdf) {
-      link.target = '_blank';
-      link.rel = 'noopener';
-    }
     links.append(link);
   };
   const renderIssue = (issue) => {
     const item = document.createElement('article');
     item.className = 'archive-item';
-    const details = document.createElement('div');
+    const details = document.createElement('a');
+    details.className = 'issue-card-link';
+    details.href = `../read/?issue=${encodeURIComponent(issue.id)}&lang=${issue.languages?.en ? 'en' : 'zh'}`;
     const date = document.createElement('p');
     date.className = 'eyebrow';
     date.textContent = issue.dateLabel;
@@ -99,9 +97,7 @@
     const links = document.createElement('div');
     links.className = 'archive-links';
     addLink(links, issue, 'en', 'Read online');
-    addLink(links, issue, 'zh', 'Read online (中文)');
-    addLink(links, issue, 'en', 'Open PDF', true);
-    addLink(links, issue, 'zh', 'Open PDF (中文)', true);
+    addLink(links, issue, 'zh', 'Read online in Chinese');
     item.append(details, links);
     return item;
   };

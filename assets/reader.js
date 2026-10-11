@@ -40,14 +40,26 @@
       const link = document.getElementById(id);
       const alternative = issue.languages?.[code];
       if (!alternative || !(pdf ? alternative.pdf : (alternative.web || alternative.html))) return;
-      link.href = pdf ? `../${alternative.pdf}` : `?issue=${encodeURIComponent(issue.id)}&lang=${code}`;
+      link.classList.remove('is-current');
+      link.removeAttribute('aria-current');
+      link.removeAttribute('aria-disabled');
+      link.removeAttribute('tabindex');
+      if (!pdf && code === language) {
+        link.removeAttribute('href');
+        link.classList.add('is-current');
+        link.setAttribute('aria-current', 'page');
+        link.setAttribute('aria-disabled', 'true');
+        link.tabIndex = -1;
+      } else {
+        link.href = pdf ? `../${alternative.pdf}` : `?issue=${encodeURIComponent(issue.id)}&lang=${code}`;
+      }
       link.textContent = label;
       link.hidden = false;
     };
     configure('read-online-en', 'en', 'Read online');
-    configure('read-online-zh', 'zh', 'Read online (中文)');
+    configure('read-online-zh', 'zh', 'Read online in Chinese');
     configure('open-pdf-en', 'en', 'Open PDF', true);
-    configure('open-pdf-zh', 'zh', 'Open PDF (中文)', true);
+    configure('open-pdf-zh', 'zh', 'Open PDF (Chinese)', true);
     actions.hidden = false;
   } catch (_) {
     title.textContent = 'Issue unavailable';

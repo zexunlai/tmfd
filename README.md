@@ -18,7 +18,7 @@ issues/2026-10-18-listening-in-the-city.en.pdf
 issues/2026-10-18-listening-in-the-city.zh.pdf
 ```
 
-The two PDFs become one issue. Every issue exposes **Read online**, **Read online (中文)**, **Open PDF**, and **Open PDF (中文)** whenever both editions are present. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, or extra HTML file is needed. The original PDFs remain available in separate browser tabs.
+The two PDFs become one issue. In its reader, every issue exposes **Read online**, **Read online in Chinese**, **Open PDF**, and **Open PDF (Chinese)** whenever both editions are present. The homepage exposes only the default **Read online** link, while Magazine exposes the two online-reading links. A text-based PDF is automatically converted into a responsive, native web edition - no API key, service account, or extra HTML file is needed. The original PDFs remain available in separate browser tabs.
 
 During publishing, TMFD also assigns one or two mandatory music genres from its built-in genre vocabulary and creates a hidden search index from distinctive article terms and names. Generic terms such as “music”, “tickets”, “buy”, and their Chinese equivalents are intentionally excluded from search. The genre vocabulary is designed to be extended when TMFD covers a new style.
 

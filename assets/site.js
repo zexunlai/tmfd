@@ -19,19 +19,14 @@
       genre.textContent = label;
       return genre;
     }));
-    const configure = (id, language, label, pdf = false) => {
-      const link = document.getElementById(id);
-      const edition = current.languages?.[language];
-      if (!edition || !(pdf ? edition.pdf : (edition.web || edition.html))) return;
-      link.href = pdf ? edition.pdf : `read/?issue=${encodeURIComponent(current.id)}&lang=${language}`;
-      link.textContent = label;
-      link.hidden = false;
-    };
-    configure('read-current-en', 'en', 'Read online');
-    configure('read-current-zh', 'zh', 'Read online (中文)');
-    configure('open-current-en', 'en', 'Open PDF', true);
-    configure('open-current-zh', 'zh', 'Open PDF (中文)', true);
-    document.getElementById('current-actions').hidden = false;
+    const language = current.languages?.en ? 'en' : 'zh';
+    const edition = current.languages?.[language];
+    if (edition?.web || edition?.html) {
+      const read = document.getElementById('read-current-en');
+      read.href = `read/?issue=${encodeURIComponent(current.id)}&lang=${language}`;
+      read.hidden = false;
+      document.getElementById('current-actions').hidden = false;
+    }
   } catch (_) {
     document.getElementById('current-title').textContent = 'The first issue is coming soon.';
   }

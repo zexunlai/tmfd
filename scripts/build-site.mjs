@@ -142,6 +142,28 @@ const renderReadingItem = (item) => {
   return `<${tag} class="${className}">${escapeHtml(item.text)}</${tag}>`;
 };
 
+const joinReadingText = (left, right) => (
+  /[\p{Script=Han}]/u.test(left.slice(-1)) && /^[\p{Script=Han}]/u.test(right) ? `${left}${right}` : `${left} ${right}`
+);
+
+const mergeReadingItems = (items) => {
+  const merged = [];
+  for (const item of items) {
+    const previous = merged.at(-1);
+    const canMerge = previous
+      && readingClass(previous) === readingClass(item)
+      && Math.abs(previous.left - item.left) <= 12
+      && item.top - previous.top <= Math.max(item.size * 2.5, 65);
+    if (canMerge) {
+      previous.text = joinReadingText(previous.text, item.text);
+      previous.top = item.top;
+    } else {
+      merged.push({ ...item });
+    }
+  }
+  return merged;
+};
+
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
 // deterministic: it runs in GitHub Actions with Poppler and needs neither a key nor
 // an external service. The PDF remains available as the layout-faithful original.
@@ -178,7 +200,14 @@ const buildReadingEdition = async (sourcePdf) => {
     const blocks = [];
     for (const { top, items: row } of rows) {
       const sorted = row.sort((a, b) => a.left - b.left);
-      const isColumnRow = sorted.length > 1 && sorted.at(-1).left - sorted[0].left > 180;
+      // pdf2xml sometimes splits one sentence into several font runs. Treat these
+      // as a single line, never as magazine columns.
+      if (sorted.length > 2) {
+        const [first] = sorted;
+        blocks.push({ type: 'single', top, className: readingClass(first), item: { ...first, text: sorted.map(({ text }) => text).join(' ') } });
+        continue;
+      }
+      const isColumnRow = sorted.length === 2 && sorted.at(-1).left - sorted[0].left > 180;
       if (isColumnRow) {
         blocks.push({ type: 'grid', items: sorted });
         continue;
@@ -190,7 +219,7 @@ const buildReadingEdition = async (sourcePdf) => {
         && Math.abs(previous.item.left - item.left) <= 10
         && top - previous.top <= Math.max(item.size * 1.9, 60);
       if (closeToPrevious) {
-        previous.item.text += ` ${item.text}`;
+        previous.item.text = joinReadingText(previous.item.text, item.text);
         previous.top = top;
       } else {
         blocks.push({ type: 'single', top, className: readingClass(item), item });
@@ -215,11 +244,12 @@ const buildReadingEdition = async (sourcePdf) => {
     }
     const content = arrangedBlocks.map((block) => {
       if (block.type === 'columns') {
-        const columns = block.rows[0].map((_, index) => block.rows
-          .map((row) => renderReadingItem(row[index]))
-          .concat(block.trailing[index].map(renderReadingItem))
-          .join(''));
-        return `<div class="web-columns">${columns.map((column) => `<div class="web-column">${column}</div>`).join('')}</div>`;
+        // Web editions deliberately read as one column: first the left PDF column,
+        // then the right. This is more legible than preserving a print spread.
+        const readingOrder = block.rows[0].flatMap((_, index) => mergeReadingItems(
+          block.rows.map((row) => row[index]).concat(block.trailing[index])
+        ));
+        return `<div class="web-stack">${readingOrder.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('')}</div>`;
       }
       return `<div class="web-row">${renderReadingItem(block.item)}</div>`;
     }).join('\n');
