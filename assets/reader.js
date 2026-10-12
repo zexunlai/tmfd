@@ -53,18 +53,14 @@
     }
 
     const buildContents = () => {
-      const labels = [...content.querySelectorAll('.web-meta')]
-        .filter((label) => label.closest('.web-row')?.querySelector('.web-meta'))
-        .filter((label) => /^\d{1,2}\s+/.test(label.textContent.trim()));
-      const unique = new Set();
-      const entries = labels.flatMap((label) => {
-        const section = label.closest('.web-section');
-        const text = label.textContent.trim().replace(/^\d{1,2}\s+/, '');
-        const key = text.toLocaleLowerCase();
-        if (!section || !text || unique.has(key)) return [];
-        unique.add(key);
-        section.id = `section-${unique.size}`;
-        return [{ section, text }];
+      // The PDF's own numbered contents page is the source of truth. Do not
+      // infer a contents list from dates, artist names, or running headers.
+      const sourceContents = issue.languages?.[language]?.contents || [];
+      const entries = sourceContents.flatMap(({ number, title: entryTitle, page }) => {
+        const section = content.querySelector(`[data-pdf-page="${page}"]`);
+        if (!section || !entryTitle) return [];
+        section.id = `section-${number}`;
+        return [{ section, text: `${number} ${entryTitle}` }];
       });
       if (!entries.length) return;
       navigation.replaceChildren();

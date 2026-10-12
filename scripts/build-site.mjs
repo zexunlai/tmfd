@@ -279,6 +279,7 @@ const linkFromPdfText = (rawText) => {
   return isExternalHref(href) ? href : '';
 };
 const isInternalPdfLink = (rawText) => Boolean(attribute(rawText, 'href')) && !linkFromPdfText(rawText);
+const internalPdfPage = (href) => Number((href.match(/#(\d+)$/) || [])[1]) || null;
 const isDateLine = (text) => /(?:\b(?:19|20)\d{2}\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\d{1,2}\s*月)/iu.test(text);
 const markWorkTitles = (items) => items.map((item, index, list) => {
   if (readingClass(item) !== 'web-secondary') return item;
@@ -325,20 +326,67 @@ const renderMedia = ({ src, alt, shape }) => (
 // flow around it in alternating editorial pairs instead of placing all visual
 // material at the end of the text.
 const renderEditorialSection = (items, media, pageIndex) => {
-  const rows = (entries) => entries.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('\n');
+  const isBlockHeading = (item) => ['web-section-title', 'web-secondary', 'web-work'].includes(readingClass(item));
+  const rows = (entries) => entries.map((item) => (
+    `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}">${renderReadingItem(item)}</div>`
+  )).join('\n');
   if (!media.length) return rows(items);
 
-  const leadEnd = items.findIndex((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
-  const splitAt = leadEnd > 0 ? leadEnd : Math.min(1, items.length);
-  const lead = items.slice(0, splitAt);
-  const remaining = items.slice(splitAt);
-  const chunkSize = Math.max(1, Math.ceil(remaining.length / media.length));
-  const features = media.map((image, index) => {
-    const copy = remaining.slice(index * chunkSize, (index + 1) * chunkSize);
-    const reverse = (pageIndex + index) % 2 === 1;
-    return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}"><div class="web-feature-copy">${rows(copy)}</div>${renderMedia(image)}</div>`;
+  // A print page can contain several discrete stories. Split before every
+  // editorial heading, so a band/album heading is always a full-width start
+  // to its own block rather than text squeezed beside an earlier photograph.
+  const blocks = [];
+  for (const item of items) {
+    if (isBlockHeading(item) && blocks.at(-1)?.length) blocks.push([]);
+    if (!blocks.length) blocks.push([]);
+    blocks.at(-1).push(item);
+  }
+  const visualsByBlock = blocks.map(() => []);
+  const storyBlocks = blocks
+    .map((block, index) => ({ block, index }))
+    .filter(({ block }) => block.some((item) => readingClass(item) === 'web-work'))
+    .map(({ index }) => index);
+  const visualTargets = storyBlocks.length ? storyBlocks : blocks.map((_, index) => index);
+  media.forEach((image, index) => {
+    // Images normally sit between complete editorial blocks rather than before
+    // the first one. Place each visual at its proportional reading position,
+    // so a single photograph on a page with two stories belongs to the second
+    // story instead of arbitrarily attaching to the first.
+    const target = visualTargets[Math.min(visualTargets.length - 1, Math.floor((index + 1) * visualTargets.length / (media.length + 1)))];
+    visualsByBlock[target].push(image);
+  });
+  // Never create a visual card that contains only a heading and an image.
+  // If a print spread uses a decorative section opener, carry the image to the
+  // next complete prose block so there is always real text to wrap around it.
+  const hasProse = (block) => block.some((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
+  visualsByBlock.forEach((visuals, index) => {
+    if (!visuals.length || hasProse(blocks[index])) return;
+    const next = blocks.findIndex((block, candidate) => candidate > index && hasProse(block));
+    const previous = [...blocks].reverse().findIndex((block, reverseIndex) => (
+      blocks.length - reverseIndex - 1 < index && hasProse(block)
+    ));
+    const target = next >= 0 ? next : (previous >= 0 ? blocks.length - previous - 1 : -1);
+    if (target >= 0) {
+      visualsByBlock[target].push(...visuals);
+      visuals.length = 0;
+    }
+  });
+
+  let visualIndex = 0;
+  return blocks.map((block, blockIndex) => {
+    const visuals = visualsByBlock[blockIndex];
+    if (!visuals.length) return rows(block);
+    let leadCount = 0;
+    while (leadCount < block.length && (isBlockHeading(block[leadCount]) || readingClass(block[leadCount]) === 'web-meta')) leadCount += 1;
+    const heading = block.slice(0, leadCount);
+    const copy = block.slice(leadCount);
+    const chunkSize = Math.max(1, Math.ceil(copy.length / visuals.length));
+    return visuals.map((image, index) => {
+      const prose = copy.slice(index * chunkSize, (index + 1) * chunkSize);
+      const reverse = (pageIndex + visualIndex++) % 2 === 1;
+      return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}">${index === 0 && heading.length ? `<div class="web-feature-heading">${rows(heading)}</div>` : ''}${renderMedia(image)}<div class="web-feature-copy">${rows(prose)}</div></div>`;
+    }).join('\n');
   }).join('\n');
-  return `${rows(lead)}${features}`;
 };
 
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
@@ -359,6 +407,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
   );
   const sections = [];
   const textParts = [];
+  const contents = [];
   const emittedSectionLabels = new Set();
   for (const [pageIndex, [, pageAttrs, pageBody]] of [...stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)].entries()) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
@@ -366,7 +415,39 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     const rawTextElements = [...pageBody.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)];
     // The print contents page is a collection of internal PDF links. Its
     // browser counterpart is created as a persistent clickable sidebar.
-    if (rawTextElements.filter(([, , rawText]) => isInternalPdfLink(rawText)).length >= 8) continue;
+    if (rawTextElements.filter(([, , rawText]) => isInternalPdfLink(rawText)).length >= 8) {
+      let previous = null;
+      let pendingNumber = null;
+      for (const [, textAttrs, rawText] of rawTextElements) {
+        const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
+        const href = attribute(rawText, 'href');
+        const font = fontSpecs.get(attribute(textAttrs, 'font')) || { size: 14 };
+        const entry = text.match(/^(\d{2})\s+(.+)$/u);
+        if (entry && href && isInternalPdfLink(rawText)) {
+          previous = {
+            number: entry[1],
+            title: entry[2].trim(),
+            page: internalPdfPage(href),
+            href,
+            size: font.size
+          };
+          contents.push(previous);
+          pendingNumber = null;
+        } else if (/^\d{2}$/u.test(text) && href && isInternalPdfLink(rawText)) {
+          // Chinese PDFs commonly place the chapter number and its title in
+          // separate text objects. Hold the number until its bold neighbour.
+          pendingNumber = { number: text, page: internalPdfPage(href), href };
+        } else if (pendingNumber && href === pendingNumber.href && /<b>/iu.test(rawText) && text) {
+          previous = { ...pendingNumber, title: text, size: font.size };
+          contents.push(previous);
+          pendingNumber = null;
+        } else if (previous && href === previous.href && font.size === previous.size && text) {
+          // Long chapter names can wrap onto a second line in the print TOC.
+          previous.title = `${previous.title} ${text}`.replace(/\s+/g, ' ').trim();
+        }
+      }
+      continue;
+    }
     const items = [];
     for (const [, textAttrs, rawText] of rawTextElements) {
       const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
@@ -405,11 +486,12 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     const readingOrder = markWorkTitles(pageReadingFlow(items, pageWidth)
       .filter((item) => !isContinuationLabel(item)));
     const media = mediaByPage.get(pageIndex + 1) || [];
-    sections.push(`<section class="web-section">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
+    sections.push(`<section class="web-section" data-pdf-page="${pageIndex + 1}">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
   }
   return {
     edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,
-    text: textParts.join(' ')
+    text: textParts.join(' '),
+    contents: contents.map(({ number, title, page }) => ({ number, title, page })).filter((entry) => entry.page)
   };
 };
 
@@ -451,6 +533,7 @@ for (const group of issueGroups.values()) {
     const files = group.files[language];
     if (!files.pdf && !files.html) continue;
     let web = null;
+    let contents = [];
     if (files.pdf) {
       const sourcePdf = path.join(issueFolder, language, files.pdf);
       let visuals = { cover: null, mediaByPage: new Map() };
@@ -463,6 +546,7 @@ for (const group of issueGroups.values()) {
       try {
         const conversion = await buildReadingEdition(sourcePdf, language, visuals.mediaByPage);
         sourceText += ` ${conversion.text}`;
+        contents = conversion.contents;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
           await mkdir(folder, { recursive: true });
@@ -476,7 +560,8 @@ for (const group of issueGroups.values()) {
     languages[language] = {
       html: files.html ? `issues/${language}/${files.html}` : null,
       pdf: files.pdf ? `issues/${language}/${files.pdf}` : null,
-      web
+      web,
+      contents
     };
   }
 
