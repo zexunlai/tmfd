@@ -352,7 +352,15 @@ const normaliseRunningLabel = (text) => text
   .replace(/\s+/g, ' ')
   .trim();
 
-const isPageNumber = (text) => /^\d{1,3}$/.test(text.trim());
+// A PDF can emit one date as several text objects (for example, "2026 年",
+// "10", "月", "11", "日"). Keep numeric text unless both its size and
+// placement identify it as a running page number.
+const isStandalonePageNumber = (item, pageWidth, pageHeight) => (
+  /^\d{1,3}$/.test(item.text.trim())
+  && item.size <= 14
+  && item.top <= pageHeight * 0.12
+  && (item.left <= pageWidth * 0.12 || item.left >= pageWidth * 0.82)
+);
 const isRunningHeader = (item, pageHeight) => (
   item.top <= pageHeight * 0.14
   && item.size <= 20
@@ -570,7 +578,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
       const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
       const top = Number(attribute(textAttrs, 'top'));
       const font = fontSpecs.get(attribute(textAttrs, 'font')) || { size: 14, family: '' };
-      if (!text || !Number.isFinite(top) || top > pageHeight * 0.88 || isPageNumber(text)) continue;
+      if (!text || !Number.isFinite(top) || top > pageHeight * 0.88) continue;
       const item = {
         text,
         top,
@@ -579,6 +587,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
         family: font.family,
         href: linkFromPdfText(rawText)
       };
+      if (isStandalonePageNumber(item, pageWidth, pageHeight)) continue;
       if (isRunningHeader(item, pageHeight)) {
         const key = normaliseRunningLabel(item.text);
         if (emittedSectionLabels.has(key)) continue;
