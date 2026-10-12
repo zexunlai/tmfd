@@ -145,7 +145,10 @@ p { margin: 10px 0; }
 .reader-pdf-spread.is-turning-back > * { animation: .32s cubic-bezier(.2,.72,.22,1) both reader-page-back; }
 .web-feature { display: flow-root; clear: both; margin: 42px 0; }
 .web-feature-heading { clear: both; margin: 0 0 18px; }
-.web-feature-copy { display: flow-root; }
+.web-feature-copy { display: block; min-width: 0; }
+/* Keep a feature's image as a true float: copy first occupies the opposite
+   side, then resumes at the full measure below the image. */
+.web-feature-copy .web-intro,.web-feature-copy .web-body:not(:has(.pdf-link)) { text-align: justify; text-justify: inter-word; }
 /* Generated PDF rows retain their semantic type.  Do not give a heading,
    body paragraph, credit and image source one inherited line-height. */
 .web-feature-copy .web-row { margin: 0 0 var(--reader-row-gap); }

@@ -101,6 +101,14 @@
         const link = document.createElement('a');
         link.href = `#${section.id}`;
         link.textContent = text;
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          section.scrollIntoView({
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: 'start'
+          });
+          history.replaceState(null, '', `#${section.id}`);
+        });
         return link;
       };
 

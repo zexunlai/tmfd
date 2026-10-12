@@ -386,6 +386,9 @@ const isRunningHeaderRemainder = (item, pageHeight) => (
 );
 const isPublicationCredit = (text) => /^(?:ze xun lai|tmfd independent music publication|tmfd vol\.|en revision|zh revision|繁中 revision)/i.test(text.trim());
 const isPublicationFooterLabel = (text) => /^(?:publication|出版資訊)$/iu.test(text.trim());
+const isPublicationFooterFragment = (item, pageHeight) => (
+  /^\d{1,2}$/.test(item.text.trim()) && item.top >= pageHeight * 0.72
+);
 const isContinuationLabel = (item) => /(?:[·•]\s*(?:continued|續|繼續))$/iu.test(item.text.trim());
 const isExternalHref = (href) => /^(?:https?:\/\/|mailto:)/iu.test(href);
 const linkFromPdfText = (rawText) => {
@@ -526,7 +529,7 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
   // a new line only for the next image's record.
   const sourceHeading = (item) => /^(?:影像|images?)$/iu.test(item.text.trim());
   const nextSourceHeading = (item) => readingClass(item) === 'web-secondary' && !sourceHeading(item);
-  const sourceLink = (item) => /^(?:來源\s*\/\s*授權|source\s*\/\s*license)$/iu.test(item.text.trim()) && Boolean(item.href);
+  const sourceLink = (item) => /^(?:來源(?:\s*\/\s*授權)?|授權|\/|source\s*\/\s*licence)$/iu.test(item.text.trim()) && Boolean(item.href);
   const licenseContinuation = (item) => /^(?:(?:cc\s*)?by-?sa|sa\s+\d|cc\s*by|by\s*\d|cc\s*$)/iu.test(item.text.trim());
   const isSourcesSection = items.some((item) => /(?:credits\s*(?:&|and)\s*sources|影像與資料)/iu.test(item.text));
   const renderSourcesSection = () => {
@@ -535,10 +538,13 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
     const output = [];
     const flush = () => {
       if (!record) return;
-      const link = record.link
-        ? ` · <a class="pdf-link" href="${escapeHtml(record.link.href)}" target="_blank" rel="noopener noreferrer">${renderReadingText(record.link.text, language)}</a>`
-        : '';
-      output.push(`<div class="web-row web-source-record"><p class="web-body">${renderReadingText(record.text, language)}${link}</p></div>`);
+      const text = renderReadingText(record.text, language);
+      // The source label is a print-only affordance.  Keep its destination by
+      // making the actual source record clickable, without repeating a label.
+      const content = record.link
+        ? `<a class="pdf-link" href="${escapeHtml(record.link.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`
+        : text;
+      output.push(`<div class="web-row web-source-record"><p class="web-body">${content}</p></div>`);
       record = null;
     };
     for (const item of items) {
@@ -559,8 +565,9 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
         continue;
       }
       if (sourceLink(item) && record) {
-        record.link = item;
-        flush();
+        // Chinese PDFs can split 「來源 / 授權」 into three linked text
+        // objects.  They all identify the same preceding record.
+        record.link ||= item;
       } else if (licenseContinuation(item) && record) {
         record.text = /[-/]$/u.test(record.text) ? `${record.text}${item.text}` : joinReadingText(record.text, item.text);
       } else {
@@ -740,7 +747,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
         item.role = 'section-label';
       } else if (isRunningHeaderRemainder(item, pageHeight)) {
         continue;
-      } else if ((isPublicationCredit(item.text) || isPublicationFooterLabel(item.text)) && pageIndex > 0) {
+      } else if ((isPublicationCredit(item.text) || isPublicationFooterLabel(item.text) || isPublicationFooterFragment(item, pageHeight)) && pageIndex > 0) {
         // Publication details are part of the cover identity. Repeated bottom
         // matter is a print footer and should not interrupt web reading.
         continue;
