@@ -450,7 +450,60 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
     const imageSource = markImageSources && (isImageSource(item) || followsImageSource);
     return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item, language)}</div>`;
   }).join('\n');
-  if (!media.length) return rows(items);
+
+  // In the final credits page, a single image source is often wrapped by the
+  // PDF compositor into two lines (for example, "CC BY-" / "SA 2.0"), then
+  // followed by its source link. Keep that one record together online; begin
+  // a new line only for the next image's record.
+  const sourceHeading = (item) => /^(?:影像|images?)$/iu.test(item.text.trim());
+  const nextSourceHeading = (item) => readingClass(item) === 'web-secondary' && !sourceHeading(item);
+  const sourceLink = (item) => /^(?:來源\s*\/\s*授權|source\s*\/\s*license)$/iu.test(item.text.trim()) && Boolean(item.href);
+  const licenseContinuation = (item) => /^(?:(?:cc\s*)?by-?sa|sa\s+\d|cc\s*by|by\s*\d|cc\s*$)/iu.test(item.text.trim());
+  const isSourcesSection = items.some((item) => /(?:credits\s*(?:&|and)\s*sources|影像與資料)/iu.test(item.text));
+  const renderSourcesSection = () => {
+    let collecting = false;
+    let record = null;
+    const output = [];
+    const flush = () => {
+      if (!record) return;
+      const link = record.link
+        ? ` · <a class="pdf-link" href="${escapeHtml(record.link.href)}" target="_blank" rel="noopener noreferrer">${renderReadingText(record.link.text, language)}</a>`
+        : '';
+      output.push(`<div class="web-row web-source-record"><p class="web-body">${renderReadingText(record.text, language)}${link}</p></div>`);
+      record = null;
+    };
+    for (const item of items) {
+      if (sourceHeading(item)) {
+        flush();
+        collecting = true;
+        output.push(rows([item]));
+        continue;
+      }
+      if (collecting && nextSourceHeading(item)) {
+        flush();
+        collecting = false;
+        output.push(rows([item]));
+        continue;
+      }
+      if (!collecting) {
+        output.push(rows([item]));
+        continue;
+      }
+      if (sourceLink(item) && record) {
+        record.link = item;
+        flush();
+      } else if (licenseContinuation(item) && record) {
+        record.text = /[-/]$/u.test(record.text) ? `${record.text}${item.text}` : joinReadingText(record.text, item.text);
+      } else {
+        flush();
+        record = { ...item };
+      }
+    }
+    flush();
+    return output.join('\n');
+  };
+  if (isSourcesSection) return renderSourcesSection();
+  if (!media.length) return `<div class="web-feature web-feature--text-only"><div class="web-feature-copy">${rows(items)}</div></div>`;
 
   // A print page can contain several discrete stories. Split before every
   // editorial heading, so a band/album heading is always a full-width start
@@ -461,8 +514,24 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
     if (!blocks.length) blocks.push([]);
     blocks.at(-1).push(item);
   }
-  const visualsByBlock = blocks.map(() => []);
   const hasProse = (block) => block.some((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
+  // A PDF commonly separates an artist, work title and its copy into distinct
+  // heading blocks. Rejoin heading-only lead-ins with the next prose block so
+  // they form one complete editorial unit before media is matched to it.
+  const completeBlocks = [];
+  let pendingHeadings = [];
+  for (const block of blocks) {
+    if (!hasProse(block)) {
+      pendingHeadings.push(...block);
+    } else {
+      completeBlocks.push([...pendingHeadings, ...block]);
+      pendingHeadings = [];
+    }
+  }
+  if (pendingHeadings.length) completeBlocks.push(pendingHeadings);
+  blocks.length = 0;
+  blocks.push(...completeBlocks);
+  const visualsByBlock = blocks.map(() => []);
   const storyBlocks = blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => block.some((item) => readingClass(item) === 'web-work'))
@@ -499,7 +568,7 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
   let visualIndex = 0;
   return blocks.map((block, blockIndex) => {
     const visuals = visualsByBlock[blockIndex];
-    if (!visuals.length) return rows(block);
+    if (!visuals.length) return `<div class="web-feature web-feature--text-only"><div class="web-feature-copy">${rows(block)}</div></div>`;
     let leadCount = 0;
     while (leadCount < block.length && (isBlockHeading(block[leadCount]) || readingClass(block[leadCount]) === 'web-meta')) leadCount += 1;
     const heading = block.slice(0, leadCount);
@@ -507,7 +576,9 @@ const renderEditorialSection = (items, media, pageIndex, language) => {
     const chunkSize = Math.max(1, Math.ceil(copy.length / visuals.length));
     return visuals.map((image, index) => {
       const prose = copy.slice(index * chunkSize, (index + 1) * chunkSize);
-      const reverse = (pageIndex + visualIndex++) % 2 === 1;
+      // The first visual in every editorial section belongs on the right.
+      // Further visuals alternate left/right within that same section.
+      const reverse = visualIndex++ % 2 === 1;
       return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}">${index === 0 && heading.length ? `<div class="web-feature-heading">${rows(heading)}</div>` : ''}${renderMedia(image)}<div class="web-feature-copy">${rows(prose, true)}</div></div>`;
     }).join('\n');
   }).join('\n');
