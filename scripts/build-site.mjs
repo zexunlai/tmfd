@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -147,8 +147,6 @@ const escapeHtml = (value) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const assetNumber = (value) => String(value).padStart(3, '0');
-
 // Every visual is derived from the issue PDF. The first page provides the
 // horizontal cover crop; embedded raster artwork is placed after its source
 // page in the responsive edition. Nothing extra needs to be uploaded.
@@ -177,6 +175,39 @@ const isLikelyLayoutAsset = ({ width, height }) => (
 );
 const minimumEditorialImageBytes = 40 * 1024;
 
+// `pdfimages -list` reports the PDF object's internal number. That number is
+// not guaranteed to be the filename sequence emitted by `pdfimages -png` on
+// every Poppler version (including the GitHub Pages build environment). Read
+// the actual PNG header instead, then pair each source image by its dimensions.
+// This keeps a photograph with the text that belongs to it across builds.
+const pngDimensions = async (filename) => {
+  const header = await readFile(filename);
+  if (header.length < 24 || header.toString('ascii', 1, 4) !== 'PNG') return null;
+  return {
+    width: header.readUInt32BE(16),
+    height: header.readUInt32BE(20),
+    // PNG colour types 0/4 are grayscale; 2/3/6 carry colour. A PDF soft
+    // mask has the same dimensions as its photo, so this distinction prevents
+    // a mask from ever being selected as the editorial image.
+    grayscale: [0, 4].includes(header[25])
+  };
+};
+
+const extractedPngAssets = async (folder, language) => {
+  const prefix = `${language}-image-`;
+  const filenames = (await readdir(folder))
+    .filter((filename) => filename.startsWith(prefix) && filename.endsWith('.png'))
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+
+  return (await Promise.all(filenames.map(async (filename) => {
+    const filenamePath = path.join(folder, filename);
+    const [dimensions, details] = await Promise.all([pngDimensions(filenamePath), stat(filenamePath)]);
+    return dimensions && details.size >= minimumEditorialImageBytes
+      ? { filename, ...dimensions }
+      : null;
+  }))).filter(Boolean);
+};
+
 const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   const folder = path.join(destination, 'issue-assets', id);
   await mkdir(folder, { recursive: true });
@@ -194,16 +225,22 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
   if (imageCandidates.length) {
     const imageBase = path.join(folder, `${language}-image`);
     await execFileAsync('pdfimages', ['-png', sourcePdf, imageBase]);
+    const extractedImages = await extractedPngAssets(folder, language);
     for (const candidate of imageCandidates) {
-      const { page, index } = candidate;
-      const filename = `${language}-image-${assetNumber(index)}.png`;
-      const imagePath = path.join(folder, filename);
+      const { page } = candidate;
+      const extractedIndex = extractedImages.findIndex((image) => (
+        image.width === candidate.width
+        && image.height === candidate.height
+        && (candidate.color === 'gray' ? image.grayscale : !image.grayscale)
+      ));
       // Very small extracted images are PDF page textures or layout placeholders,
-      // rather than editorial pictures. Do not create empty visual cards for them.
-      if ((await stat(imagePath)).size < minimumEditorialImageBytes) continue;
+      // rather than editorial pictures. A missing exact-size match is safer to
+      // omit than to show a different photograph next to the wrong article.
+      if (extractedIndex === -1) continue;
+      const [extracted] = extractedImages.splice(extractedIndex, 1);
       const image = {
-        src: `../issue-assets/${id}/${filename}`,
-        shape: candidate.width / candidate.height > 1.25 ? 'landscape' : candidate.height / candidate.width > 1.25 ? 'portrait' : 'square',
+        src: `../issue-assets/${id}/${extracted.filename}`,
+        shape: extracted.width / extracted.height > 1.25 ? 'landscape' : extracted.height / extracted.width > 1.25 ? 'portrait' : 'square',
         alt: language === 'zh' ? '原始 PDF 中的編輯圖片' : 'Editorial image from the original PDF'
       };
       if (!mediaByPage.has(page)) mediaByPage.set(page, []);
@@ -261,10 +298,22 @@ const rowGroups = (items) => {
   return rows;
 };
 
-const renderReadingItem = (item) => {
+const renderReadingText = (value, language) => {
+  if (language !== 'zh') return escapeHtml(value);
+  // A Chinese edition can contain artist names, work titles and English
+  // quotations. Keep those Latin-language runs in the same type family as an
+  // English page, while the surrounding Chinese follows its own type rule.
+  return value.split(/([A-Za-z][A-Za-z0-9À-ÿ'’&.,:;!?/()\-]*(?:\s+[A-Za-z0-9À-ÿ'’&.,:;!?/()\-]+)*)/gu)
+    .map((part) => (/^[A-Za-z]/u.test(part)
+      ? `<span lang="en">${escapeHtml(part)}</span>`
+      : escapeHtml(part)))
+    .join('');
+};
+
+const renderReadingItem = (item, language) => {
   const className = readingClass(item);
   const tag = readingTag(className);
-  const text = escapeHtml(item.text);
+  const text = renderReadingText(item.text, language);
   const content = item.href
     ? `<a class="pdf-link" href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`
     : text;
@@ -383,7 +432,7 @@ const isImageSource = ({ text, href = '' }) => (
 // image with its original PDF page, but distribute the source page's reading
 // flow around it in alternating editorial pairs instead of placing all visual
 // material at the end of the text.
-const renderEditorialSection = (items, media, pageIndex) => {
+const renderEditorialSection = (items, media, pageIndex, language) => {
   const isBlockHeading = (item) => ['web-section-title', 'web-secondary', 'web-work'].includes(readingClass(item));
   const rows = (entries, markImageSources = false) => entries.map((item, index) => {
     // A caption usually precedes its credit line. Mark both together on a
@@ -391,7 +440,7 @@ const renderEditorialSection = (items, media, pageIndex) => {
     // retaining the reading copy and all non-image links.
     const followsImageSource = Boolean(entries[index + 1] && isImageSource(entries[index + 1]));
     const imageSource = markImageSources && (isImageSource(item) || followsImageSource);
-    return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item)}</div>`;
+    return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item, language)}</div>`;
   }).join('\n');
   if (!media.length) return rows(items);
 
@@ -560,7 +609,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
       coverSummary = firstParagraph ? truncateSummary(firstParagraph.text) : '';
     }
     const media = mediaByPage.get(pageIndex + 1) || [];
-    sections.push(`<section class="web-section" data-pdf-page="${pageIndex + 1}">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
+    sections.push(`<section class="web-section" data-pdf-page="${pageIndex + 1}">${renderEditorialSection(readingOrder, media, pageIndex, language)}</section>`);
   }
   return {
     edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,

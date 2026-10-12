@@ -112,6 +112,10 @@ p { margin: 10px 0; }
 #reader-content[data-language="zh"] .web-section-title,#reader-content[data-language="zh"] .web-secondary,#reader-content[data-language="zh"] .web-work { font-family: SimSun; }
 #reader-content[data-language="en"] .web-intro,#reader-content[data-language="en"] .web-body,#reader-content[data-language="en"] .web-meta { font-family: "Times New Roman"; }
 #reader-content[data-language="zh"] .web-intro,#reader-content[data-language="zh"] .web-body,#reader-content[data-language="zh"] .web-meta { font-family: "Microsoft JhengHei"; }
+/* Chinese PDFs often mix English names into a Chinese line. The generator
+   marks the Latin runs so the four-font rule remains true at word level. */
+#reader-content[data-language="zh"] .web-section-title [lang="en"],#reader-content[data-language="zh"] .web-secondary [lang="en"],#reader-content[data-language="zh"] .web-work [lang="en"] { font-family: Georgia; }
+#reader-content[data-language="zh"] .web-intro [lang="en"],#reader-content[data-language="zh"] .web-body [lang="en"],#reader-content[data-language="zh"] .web-meta [lang="en"] { font-family: "Times New Roman"; }
 .pdf-link { color: inherit; text-decoration-color: var(--rust); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .pdf-link:hover { color: var(--rust); }
 .reader-cover { margin: 54px 0; overflow: hidden; border-radius: 52px 18px 52px 18px; background: var(--paper-deep); box-shadow: 15px 15px 0 var(--peach); }
