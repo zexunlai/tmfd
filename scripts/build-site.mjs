@@ -394,6 +394,51 @@ const linkFromPdfText = (rawText) => {
 };
 const isInternalPdfLink = (rawText) => Boolean(attribute(rawText, 'href')) && !linkFromPdfText(rawText);
 const internalPdfPage = (href) => Number((href.match(/#(\d+)$/) || [])[1]) || null;
+// Some PDF exporters preserve printed contents but discard the internal link
+// annotations.  The site must still have a real, navigable contents menu in
+// that case, so read its numbered entries from their visible layout.
+const unlinkedContents = (rawTextElements) => {
+  const entries = rawTextElements.map(([, textAttrs, rawText]) => ({
+    text: decodeXml(rawText).replace(/\s+/g, ' ').trim(),
+    top: Number(attribute(textAttrs, 'top')) || 0,
+    left: Number(attribute(textAttrs, 'left')) || 0,
+    bold: /<b>/iu.test(rawText)
+  })).filter((item) => item.text);
+  const hasContentsHeading = entries.some(({ text }) => /^(?:contents|本期目錄)$/iu.test(text));
+  if (!hasContentsHeading) return [];
+
+  // Chinese contents use a bold chapter label such as “01 編者的話”, while
+  // its target page is printed on the following line.  Recover both pieces
+  // from their shared column before falling back to the title-and-page form.
+  const numbered = entries.flatMap((entry) => {
+    if (!/^\d{2}$/u.test(entry.text)) return [];
+    const title = entries.find((candidate) => candidate !== entry
+      && candidate.bold
+      && candidate.left > entry.left
+      && Math.abs(candidate.top - entry.top) <= 12);
+    const page = entries.find((candidate) => candidate.left >= entry.left - 3
+      && candidate.left <= entry.left + 180
+      && candidate.top > entry.top + 18
+      && candidate.top < entry.top + 78
+      && /[·•]\s*\d{1,3}\s*$/u.test(candidate.text));
+    const pageNumber = page ? Number((page.text.match(/(\d{1,3})\s*$/u) || [])[1]) : 0;
+    return title && pageNumber
+      ? [{ number: entry.text, title: title.text, page: pageNumber + 1 }]
+      : [];
+  });
+  if (numbered.length >= 4) return numbered;
+
+  // English contents commonly put “Title · 2” in one text object.  The
+  // printed page count starts after the cover and contents, hence +1.
+  const titled = entries.flatMap(({ text }) => {
+    const match = text.match(/^(.+?)\s*[·•]\s*(\d{1,3})\s*$/u);
+    if (!match || /^(?:tmfd|contents)$/iu.test(match[1])) return [];
+    return [{ title: match[1].trim(), page: Number(match[2]) + 1 }];
+  });
+  return titled.length >= 4
+    ? titled.map((entry, index) => ({ ...entry, number: String(index + 1).padStart(2, '0') }))
+    : [];
+};
 const isDateLine = (text) => /(?:\b(?:19|20)\d{2}\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\d{1,2}\s*月)/iu.test(text);
 const markWorkTitles = (items) => items.map((item, index, list) => {
   if (readingClass(item) !== 'web-secondary') return item;
@@ -666,6 +711,11 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
           previous.title = `${previous.title} ${text}`.replace(/\s+/g, ' ').trim();
         }
       }
+      continue;
+    }
+    const recoveredContents = unlinkedContents(rawTextElements);
+    if (recoveredContents.length) {
+      contents.push(...recoveredContents);
       continue;
     }
     const items = [];
