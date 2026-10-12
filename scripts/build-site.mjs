@@ -85,6 +85,14 @@ const editionLabelFromText = (sourceText) => {
   return `${volume} Edition`;
 };
 
+const truncateSummary = (value, limit = 240) => {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (clean.length <= limit) return clean;
+  const wordBreak = clean.lastIndexOf(' ', limit);
+  const end = wordBreak > limit * 0.6 ? wordBreak : limit;
+  return `${clean.slice(0, end).trim()}…`;
+};
+
 const issueMetadata = (title, sourceText, coverSummary = '') => {
   const source = normalizeText(`${title} ${sourceText}`);
   const rankedGenres = genreRules
@@ -522,8 +530,11 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     // the repeated continuation label—not its following editorial text.
     const readingOrder = markWorkTitles(pageReadingFlow(items, pageWidth)
       .filter((item) => !isContinuationLabel(item)));
-    if (pageIndex === 0 && !coverSummary) {
-      coverSummary = readingOrder.find((item) => readingClass(item) === 'web-body')?.text || '';
+    if (pageIndex > 0 && !coverSummary) {
+      const firstParagraph = readingOrder.find((item) => (
+        ['web-intro', 'web-body'].includes(readingClass(item)) && item.text.length >= 80
+      ));
+      coverSummary = firstParagraph ? truncateSummary(firstParagraph.text) : '';
     }
     const media = mediaByPage.get(pageIndex + 1) || [];
     sections.push(`<section class="web-section" data-pdf-page="${pageIndex + 1}">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
