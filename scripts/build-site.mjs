@@ -327,8 +327,12 @@ const internalPdfPage = (href) => Number((href.match(/#(\d+)$/) || [])[1]) || nu
 const isDateLine = (text) => /(?:\b(?:19|20)\d{2}\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\d{1,2}\s*月)/iu.test(text);
 const markWorkTitles = (items) => items.map((item, index, list) => {
   if (readingClass(item) !== 'web-secondary') return item;
-  const next = list[index + 1];
-  if (/\b(?:19|20)\d{2}\b/u.test(item.text) || (next && isDateLine(next.text))) {
+  // A work card in the PDF is normally laid out as artist, work title, then
+  // year/date. Those are separate text objects, so examining only the very
+  // next line loses the artist heading and can attach its image to a different
+  // card. Keep the complete three-line identity together.
+  const identityLines = list.slice(index, index + 4);
+  if (identityLines.some((entry) => /\b(?:19|20)\d{2}\b/u.test(entry.text) || isDateLine(entry.text))) {
     return { ...item, role: 'work' };
   }
   return item;
@@ -365,15 +369,30 @@ const renderMedia = ({ src, alt, shape }) => (
   `<figure class="web-media web-media--${shape}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
 );
 
+// Image credits are useful alongside the desktop reading layout, but become
+// repetitive beneath each image on a narrow screen. They remain in the PDF
+// and the final credits chapter; this marker lets mobile hide only the inline
+// image-credit rows, without removing editorial links such as tickets or
+// official listening.
+const isImageSource = ({ text, href = '' }) => (
+  /(?:commons\.wikimedia\.org|creativecommons\.org)/iu.test(href)
+  || /(?:\bcc\s*by(?:-sa)?\b|archive (?:image|performance image)|licensed (?:publicity )?photograph|official (?:artist|brand|product) image|editorial citation|(?:image|video)\.?$|(?:歷史|官方|演出|現場|授權|宣傳|產品|品牌)?(?:影像|圖片|照片|影片)[。.]?$|圖像來源|圖片來源|影像來源|影片截圖|授權)/iu.test(text.trim())
+);
+
 // PDF pages do not retain a useful article-level image anchor.  Keep each
 // image with its original PDF page, but distribute the source page's reading
 // flow around it in alternating editorial pairs instead of placing all visual
 // material at the end of the text.
 const renderEditorialSection = (items, media, pageIndex) => {
   const isBlockHeading = (item) => ['web-section-title', 'web-secondary', 'web-work'].includes(readingClass(item));
-  const rows = (entries) => entries.map((item) => (
-    `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}">${renderReadingItem(item)}</div>`
-  )).join('\n');
+  const rows = (entries, markImageSources = false) => entries.map((item, index) => {
+    // A caption usually precedes its credit line. Mark both together on a
+    // responsive image card so mobile can hide the repeated attribution while
+    // retaining the reading copy and all non-image links.
+    const followsImageSource = Boolean(entries[index + 1] && isImageSource(entries[index + 1]));
+    const imageSource = markImageSources && (isImageSource(item) || followsImageSource);
+    return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item)}</div>`;
+  }).join('\n');
   if (!media.length) return rows(items);
 
   // A print page can contain several discrete stories. Split before every
@@ -386,23 +405,27 @@ const renderEditorialSection = (items, media, pageIndex) => {
     blocks.at(-1).push(item);
   }
   const visualsByBlock = blocks.map(() => []);
+  const hasProse = (block) => block.some((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
   const storyBlocks = blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => block.some((item) => readingClass(item) === 'web-work'))
     .map(({ index }) => index);
-  const visualTargets = storyBlocks.length ? storyBlocks : blocks.map((_, index) => index);
+  const proseBlocks = blocks
+    .map((block, index) => ({ block, index }))
+    .filter(({ block }) => hasProse(block))
+    .map(({ index }) => index);
+  const visualTargets = storyBlocks.length ? storyBlocks : (proseBlocks.length ? proseBlocks : blocks.map((_, index) => index));
   media.forEach((image, index) => {
-    // Images normally sit between complete editorial blocks rather than before
-    // the first one. Place each visual at its proportional reading position,
-    // so a single photograph on a page with two stories belongs to the second
-    // story instead of arbitrarily attaching to the first.
-    const target = visualTargets[Math.min(visualTargets.length - 1, Math.floor((index + 1) * visualTargets.length / (media.length + 1)))];
+    // An extracted image stays in PDF order. Once work-card headings have been
+    // identified, map that order directly to the corresponding story block on
+    // the page. This keeps, for example, the left card's image with the left
+    // card rather than swapping it with the next column on mobile or desktop.
+    const target = visualTargets[Math.min(index, visualTargets.length - 1)];
     visualsByBlock[target].push(image);
   });
   // Never create a visual card that contains only a heading and an image.
   // If a print spread uses a decorative section opener, carry the image to the
   // next complete prose block so there is always real text to wrap around it.
-  const hasProse = (block) => block.some((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
   visualsByBlock.forEach((visuals, index) => {
     if (!visuals.length || hasProse(blocks[index])) return;
     const next = blocks.findIndex((block, candidate) => candidate > index && hasProse(block));
@@ -428,7 +451,7 @@ const renderEditorialSection = (items, media, pageIndex) => {
     return visuals.map((image, index) => {
       const prose = copy.slice(index * chunkSize, (index + 1) * chunkSize);
       const reverse = (pageIndex + visualIndex++) % 2 === 1;
-      return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}">${index === 0 && heading.length ? `<div class="web-feature-heading">${rows(heading)}</div>` : ''}${renderMedia(image)}<div class="web-feature-copy">${rows(prose)}</div></div>`;
+      return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}">${index === 0 && heading.length ? `<div class="web-feature-heading">${rows(heading)}</div>` : ''}${renderMedia(image)}<div class="web-feature-copy">${rows(prose, true)}</div></div>`;
     }).join('\n');
   }).join('\n');
 };

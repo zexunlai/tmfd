@@ -11,8 +11,8 @@
 @keyframes reader-fade-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes reader-reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 * { box-sizing: border-box; }
-html { max-width: 100%; overflow-x: hidden; scroll-behavior: smooth; }
-body { min-width: 0; max-width: 100%; margin: 0; overflow-x: hidden; color: var(--ink); background: linear-gradient(rgba(248,243,235,.94),rgba(248,243,235,.94)),url("visuals/ink-waves.png") center / 740px auto fixed; font-family: "Times New Roman","Microsoft JhengHei"; font-size: 14pt; line-height: 1.6; }
+html { max-width: 100%; overflow-x: clip; scroll-behavior: smooth; }
+body { min-width: 0; max-width: 100%; margin: 0; overflow-x: clip; color: var(--ink); background: linear-gradient(rgba(248,243,235,.94),rgba(248,243,235,.94)),url("visuals/ink-waves.png") center / 740px auto fixed; font-family: "Times New Roman","Microsoft JhengHei"; font-size: 14pt; line-height: 1.6; }
 img,iframe { max-width: 100%; }
 a { color: inherit; }
 a:focus-visible { outline: 3px solid var(--orange); outline-offset: 4px; }
@@ -57,7 +57,7 @@ p { margin: 10px 0; }
 .site-footer a { text-underline-offset: 3px; }
 .archive-main { padding-top: 84px; padding-bottom: 84px; }
 .magazine-layout { display: grid; grid-template-columns: minmax(240px,300px) minmax(0,1fr); gap: 52px; margin-top: 48px; align-items: start; }
-.issue-discovery { position: sticky; top: 24px; max-height: calc(100svh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: 22px 42px 22px 42px; background: rgba(255,253,252,.7); }
+.issue-discovery { position: sticky; z-index: 2; top: 24px; align-self: start; max-height: calc(100svh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: 22px 42px 22px 42px; background: rgba(255,253,252,.7); }
 .magazine-results { min-width: 0; }
 .archive-list { display: grid; gap: 20px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -71,7 +71,7 @@ p { margin: 10px 0; }
 .result-count { margin: 0 0 18px; font-size: 10pt; font-weight: 700; }
 .reader-main { max-width: 1440px; padding-top: 56px; padding-bottom: 84px; }
 .reader-layout { display: grid; grid-template-columns: minmax(180px,238px) minmax(0,1fr); gap: 42px; align-items: start; }
-.reader-navigation { position: sticky; top: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 20px 36px 20px 36px; background: rgba(255,253,252,.82); box-shadow: 8px 8px 0 var(--paper-deep); }
+.reader-navigation { position: sticky; z-index: 2; top: 24px; align-self: start; padding: 20px; border: 1px solid var(--line); border-radius: 20px 36px 20px 36px; background: rgba(255,253,252,.82); box-shadow: 8px 8px 0 var(--paper-deep); }
 .reader-navigation-title { margin: 0 0 12px; color: var(--rust); font-family: Georgia,SimSun; font-size: 10pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .reader-navigation-list { display: grid; gap: 4px; }
 .reader-navigation a { display: block; padding: 8px 9px; border-radius: 12px 5px 12px 5px; font-size: 10pt; font-weight: 700; line-height: 1.25; text-decoration: none; transition: background .2s ease, transform .2s ease; }
@@ -166,6 +166,7 @@ p { margin: 10px 0; }
   .back-to-top { right: 14px; left: auto; bottom: max(14px, env(safe-area-inset-bottom)); padding: 9px 12px; }
   .web-section { padding: 40px 0; }.web-row.edition-identity .web-secondary,.edition-identity .web-identity-row .web-secondary { font-size: 16pt; white-space: normal; }.web-section-title { font-size: 28pt; }.web-secondary { font-size: 18pt; }.web-work,.web-intro { font-size: 16pt; }
   .reader-cover { margin: 34px 0; border-radius: 28px 10px 28px 10px; box-shadow: 9px 9px 0 var(--peach); }.reader-cover img { aspect-ratio: 16 / 9; }.reader-pdf-cover { width: min(100%,560px); margin: 34px auto; box-shadow: 9px 9px 0 var(--peach); }.web-feature { margin: 34px 0; }.web-feature .web-media,.web-feature .web-media--portrait,.web-feature .web-media--square { float: none; width: 100%; max-width: 560px; margin: 0 0 24px; }.web-media { padding: 10px; border-radius: 16px 28px 16px 28px; box-shadow: 6px 6px 0 var(--paper-deep); }.web-media img { max-height: 620px; border-radius: 9px 18px 9px 18px; }.embedded-pdf { margin: 34px 0; padding: 10px; border-radius: 16px 28px 16px 28px; }.embedded-pdf-frame { min-height: 72vh; border-radius: 9px 18px 9px 18px; }
+  .web-feature-copy .web-image-source { display: none; }
   .magazine-layout { grid-template-columns: 1fr; gap: 32px; margin-top: 36px; }.issue-discovery { margin-left: -24px; margin-right: -24px; padding: 24px; position: static; border-radius: 0; }
   .archive-item { grid-template-columns: 1fr; gap: 12px; padding: 18px; }.archive-links { align-items: flex-start; }.site-footer { flex-direction: column; }
 }
