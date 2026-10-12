@@ -2,7 +2,11 @@
   --paper: #F8F3EB; --paper-deep: #E9DED0; --paper-light: #FFFDFC;
   --ink: #211F1C; --charcoal: #34312D; --rust: #7A2720; --orange: #FD5108;
   --peach: #FFCDA8; --line: #CFC4B7; --mist: #E9E5DF; --max-width: 1160px; --curve: 28px;
-  --reader-copy-leading: 1.65;
+  /* A stable editorial rhythm shared by both language editions. */
+  --reader-copy-leading: 1.7;
+  --reader-intro-leading: 1.58;
+  --reader-meta-leading: 1.4;
+  --reader-row-gap: 18px;
 }
 @view-transition { navigation: auto; }
 ::view-transition-old(root) { animation: .18s ease both reader-fade-out; }
@@ -93,20 +97,17 @@ p { margin: 10px 0; }
 .web-edition { max-width: none; margin: 0; }
 .web-section { padding: 56px 0; border-top: 1px solid var(--line); scroll-margin-top: 28px; }
 .web-section:first-child { border-top: 0; padding-top: 0; }
-.web-row { margin: 0 0 14px; }
+.web-row { margin: 0 0 var(--reader-row-gap); }
 .web-row.edition-identity, .web-stack.edition-identity { margin: 0 0 36px; }
 .web-stack { margin: 28px 0; }
 .web-edition h1,.web-edition h2,.web-edition h3,.web-edition p { max-width: 100%; overflow-wrap: anywhere; }
 .web-section-title { margin: 0; font-family: Georgia,SimSun; font-size: 32pt; font-weight: 700; line-height: 1.08; letter-spacing: -.035em; }
 .web-secondary { margin: 0; font-family: Georgia,SimSun; font-size: 20pt; font-weight: 700; line-height: 1.16; letter-spacing: -.02em; }
 .web-work { margin: 0; font-family: Georgia,SimSun; font-size: 16pt; font-weight: 700; line-height: 1.25; }
-.web-intro,.web-body { margin: 0; max-width: 760px; line-height: var(--reader-copy-leading); }
-.web-intro { font-size: 16pt; }
-.web-body { font-size: 14pt; }
-/* Keep every paragraph in the online article on the same baseline rhythm,
-   including text which wraps around an image or contains a source link. */
-.web-feature-copy,.web-feature-copy .web-row,.web-feature-copy .web-intro,.web-feature-copy .web-body { line-height: var(--reader-copy-leading); }
-.web-meta { margin: 0; max-width: 760px; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .08em; line-height: 1.45; text-transform: uppercase; }
+.web-intro,.web-body { margin: 0; max-width: 760px; }
+.web-intro { font-size: 16pt; line-height: var(--reader-intro-leading); }
+.web-body { font-size: 14pt; line-height: var(--reader-copy-leading); }
+.web-meta { margin: 0; max-width: 760px; color: var(--rust); font-size: 10pt; font-weight: 700; letter-spacing: .08em; line-height: var(--reader-meta-leading); text-transform: uppercase; }
 .web-row.edition-identity .web-secondary { font-size: 20pt; line-height: 1.16; white-space: nowrap; }
 .edition-identity .web-identity-row .web-secondary { font-size: 20pt; line-height: 1.16; letter-spacing: 0; white-space: nowrap; }
 #reader-content[data-language="en"] .web-section-title,#reader-content[data-language="en"] .web-secondary,#reader-content[data-language="en"] .web-work { font-family: Georgia; }
@@ -126,7 +127,16 @@ p { margin: 10px 0; }
 .web-feature { display: flow-root; margin: 42px 0; }
 .web-feature-heading { clear: both; margin: 0 0 18px; }
 .web-feature-copy { display: flow-root; }
-.web-feature-copy .web-row { margin: 0; }
+/* Generated PDF rows retain their semantic type.  Do not give a heading,
+   body paragraph, credit and image source one inherited line-height. */
+.web-feature-copy .web-row { margin: 0 0 var(--reader-row-gap); }
+.web-feature-copy .web-row--heading { margin-bottom: 12px; line-height: normal; }
+.web-feature-copy .web-row:has(.web-meta) { margin-bottom: 14px; }
+.web-feature-copy .web-row.web-image-source,
+.web-feature-copy .web-row.web-source-record { margin-bottom: 14px; }
+.web-feature-copy .web-row.web-image-source .web-body,
+.web-feature-copy .web-row.web-source-record .web-body { font-size: 10pt; line-height: var(--reader-meta-leading); }
+.web-feature-copy .web-row:last-child { margin-bottom: 0; }
 .web-row--heading { clear: both; }
 .web-feature .web-media { float: right; width: min(42%, 560px); margin: 0 0 20px clamp(24px,4vw,56px); }
 .web-feature--reverse .web-media { float: left; margin: 0 clamp(24px,4vw,56px) 20px 0; }
