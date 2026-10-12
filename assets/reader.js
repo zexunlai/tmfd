@@ -50,10 +50,25 @@
     }
 
     // Publication identity is a single English phrase in the Chinese edition.
-    // Give it a dedicated class so its English words never wrap into an orphan.
+    // Keep meaningful word groups together so a narrow screen never leaves
+    // “Disclosures” alone on a second line.
     const publicationIdentity = [...content.querySelectorAll('.web-section:first-child .web-secondary')]
       .find((heading) => /task force on music-related financial disclosures/iu.test(heading.textContent));
-    if (publicationIdentity) publicationIdentity.classList.add('web-publication-identity');
+    if (publicationIdentity) {
+      publicationIdentity.classList.add('web-publication-identity');
+      const englishName = publicationIdentity.querySelector('[lang="en"]');
+      if (englishName && /task force on music-related financial disclosures/iu.test(englishName.textContent)) {
+        const firstLine = 'Task Force on Music-related';
+        const secondLine = 'Financial Disclosures';
+        englishName.replaceChildren();
+        for (const line of [firstLine, secondLine]) {
+          const group = document.createElement('span');
+          group.className = 'publication-identity-group';
+          group.textContent = line;
+          englishName.append(group, document.createTextNode(' '));
+        }
+      }
+    }
 
     const coverSource = issue.covers?.[language] || issue.cover;
     if (coverSource) {
@@ -128,7 +143,9 @@
       }
       viewer.replaceChildren();
       if (pdfPages?.length) {
-        let spreadStart = 0;
+        // PDF cover is page 0. Books open with it on the right, opposite a
+        // deliberately blank page -1; every later even page is also right.
+        let spreadStart = -1;
         const controls = document.createElement('div');
         controls.className = 'reader-pdf-controls';
         const previous = document.createElement('button');
@@ -146,26 +163,40 @@
         controls.append(previous, pageLabel, next, open);
         const spread = document.createElement('div');
         spread.className = 'reader-pdf-spread';
-        const renderSpread = () => {
+        const renderSpread = (turn = '') => {
           spread.replaceChildren();
-          const pages = pdfPages.slice(spreadStart, spreadStart + 2);
-          pages.forEach((page, offset) => {
+          for (const pageIndex of [spreadStart, spreadStart + 1]) {
+            if (pageIndex < 0 || pageIndex >= pdfPages.length) {
+              const blank = document.createElement('div');
+              blank.className = 'reader-pdf-blank';
+              blank.setAttribute('aria-hidden', 'true');
+              spread.append(blank);
+              continue;
+            }
             const image = document.createElement('img');
-            image.src = `../${page}`;
-            image.alt = `${issue.title} — ${label}, page ${spreadStart + offset + 1}`;
+            image.src = `../${pdfPages[pageIndex]}`;
+            image.alt = `${issue.title} — ${label}, ${pageIndex === 0 ? 'cover' : `page ${pageIndex}`}`;
             spread.append(image);
-          });
-          previous.disabled = spreadStart === 0;
-          next.disabled = spreadStart + 2 >= pdfPages.length;
-          pageLabel.textContent = `Pages ${spreadStart + 1}–${Math.min(spreadStart + 2, pdfPages.length)} of ${pdfPages.length}`;
+          }
+          spread.classList.remove('is-turning-forward', 'is-turning-back');
+          if (turn) {
+            // Restart the short CSS page-turn transition for each new spread.
+            void spread.offsetWidth;
+            spread.classList.add(turn === 'forward' ? 'is-turning-forward' : 'is-turning-back');
+          }
+          previous.disabled = spreadStart <= -1;
+          next.disabled = spreadStart + 1 >= pdfPages.length;
+          pageLabel.textContent = spreadStart === -1
+            ? `Cover · ${pdfPages.length} pages`
+            : `Pages ${spreadStart}–${Math.min(spreadStart + 1, pdfPages.length - 1)} of ${pdfPages.length - 1}`;
         };
         previous.addEventListener('click', () => {
-          spreadStart = Math.max(0, spreadStart - 2);
-          renderSpread();
+          spreadStart = spreadStart <= 1 ? -1 : spreadStart - 2;
+          renderSpread('back');
         });
         next.addEventListener('click', () => {
-          spreadStart = Math.min(Math.max(0, pdfPages.length - 1), spreadStart + 2);
-          renderSpread();
+          spreadStart = spreadStart === -1 ? 1 : Math.min(pdfPages.length - 1, spreadStart + 2);
+          renderSpread('forward');
         });
         viewer.append(controls, spread);
         renderSpread();
