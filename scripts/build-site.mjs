@@ -218,6 +218,18 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
     '-scale-to-x', '1600', '-scale-to-y', '-1', sourcePdf, coverBase
   ]);
 
+  // Native browser PDF viewers do not offer a dependable two-page mode.
+  // Build compact page pixels so the desktop reader can present real A4
+  // spreads while the original PDF remains available for direct opening.
+  const pdfPageBase = path.join(folder, `${language}-pdf-page`);
+  await execFileAsync('pdftoppm', [
+    '-jpeg', '-scale-to-x', '1000', '-scale-to-y', '-1', sourcePdf, pdfPageBase
+  ]);
+  const pdfPages = (await readdir(folder))
+    .filter((filename) => filename.startsWith(`${language}-pdf-page-`) && filename.endsWith('.jpg'))
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }))
+    .map((filename) => `issue-assets/${id}/${filename}`);
+
   const mediaByPage = new Map();
   const imageCandidates = (await embeddedPdfImages(sourcePdf)).filter((image) => (
     image.page !== 1 && !isWordmarkPanel(image) && !isLikelyLayoutAsset(image)
@@ -250,7 +262,8 @@ const createPdfVisuals = async ({ sourcePdf, id, language }) => {
 
   return {
     cover: `issue-assets/${id}/cover-${language}.jpg`,
-    mediaByPage
+    mediaByPage,
+    pdfPages
   };
 };
 
@@ -426,15 +439,30 @@ const renderMedia = ({ src, alt, shape }) => (
   `<figure class="web-media web-media--${shape}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
 );
 
-// Image credits are useful alongside the desktop reading layout, but become
-// repetitive beneath each image on a narrow screen. They remain in the PDF
-// and the final credits chapter; this marker lets mobile hide only the inline
-// image-credit rows, without removing editorial links such as tickets or
-// official listening.
+// Image credits belong in the final credits chapter, rather than interrupting
+// the reading flow beside every image.  Mark only captions and attribution
+// rows, never a work year, venue detail or editorial paragraph that happens
+// to sit next to an image in the original PDF.
 const isImageSource = ({ text, href = '' }) => (
   /(?:commons\.wikimedia\.org|creativecommons\.org)/iu.test(href)
   || /(?:\bcc\s*by(?:-sa)?\b|archive (?:image|performance image)|licensed (?:publicity )?photograph|official (?:artist|brand|product) image|editorial citation|(?:image|video)\.?$|(?:歷史|官方|演出|現場|授權|宣傳|產品|品牌)?(?:影像|圖片|照片|影片)[。.]?$|圖像來源|圖片來源|影像來源|影片截圖|授權)/iu.test(text.trim())
 );
+const isStandaloneDateOrYear = (text) => (
+  /^\s*(?:\d{4}|\d{1,2}\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s*[·,/-]?\s*\d{0,4}|\d{1,2}\s*月\s*\d{0,2}\s*日?)\s*$/iu.test(text)
+);
+const isEventDetail = (text) => /(?:\b(?:doors?|show|admission|tickets?)\b|\d{1,2}:\d{2}|入場|開演|售票|票價)/iu.test(text);
+const isImageCaption = (item, followingItem) => {
+  if (isImageSource(item)) return true;
+  if (!followingItem || !isImageSource(followingItem) || item.href) return false;
+  const text = item.text.trim();
+  // A short non-link line immediately before a credit is generally a caption.
+  // Protect release years and performance information, which are article data.
+  return readingClass(item) === 'web-body'
+    && text.length > 12
+    && text.length <= 140
+    && !isStandaloneDateOrYear(text)
+    && !isEventDetail(text);
+};
 
 // PDF pages do not retain a useful article-level image anchor.  Keep each
 // image with its original PDF page, but distribute the source page's reading
@@ -443,11 +471,7 @@ const isImageSource = ({ text, href = '' }) => (
 const renderEditorialSection = (items, media, pageIndex, language) => {
   const isBlockHeading = (item) => ['web-section-title', 'web-secondary', 'web-work'].includes(readingClass(item));
   const rows = (entries, markImageSources = false) => entries.map((item, index) => {
-    // A caption usually precedes its credit line. Mark both together on a
-    // responsive image card so mobile can hide the repeated attribution while
-    // retaining the reading copy and all non-image links.
-    const followsImageSource = Boolean(entries[index + 1] && isImageSource(entries[index + 1]));
-    const imageSource = markImageSources && (isImageSource(item) || followsImageSource);
+    const imageSource = markImageSources && isImageCaption(item, entries[index + 1]);
     return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item, language)}</div>`;
   }).join('\n');
 
@@ -739,9 +763,9 @@ for (const group of issueGroups.values()) {
     if (!files.pdf && !files.html) continue;
     let web = null;
     let contents = [];
+    let visuals = { cover: null, mediaByPage: new Map(), pdfPages: [] };
     if (files.pdf) {
       const sourcePdf = path.join(issueFolder, language, files.pdf);
-      let visuals = { cover: null, mediaByPage: new Map() };
       try {
         visuals = await createPdfVisuals({ sourcePdf, id, language });
         covers[language] = visuals.cover;
@@ -767,6 +791,7 @@ for (const group of issueGroups.values()) {
       html: files.html ? `issues/${language}/${files.html}` : null,
       pdf: files.pdf ? `issues/${language}/${files.pdf}` : null,
       web,
+      pdfPages: visuals.pdfPages,
       contents
     };
   }

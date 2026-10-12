@@ -49,6 +49,12 @@
       throw new Error('Issue has no readable source');
     }
 
+    // Publication identity is a single English phrase in the Chinese edition.
+    // Give it a dedicated class so its English words never wrap into an orphan.
+    const publicationIdentity = [...content.querySelectorAll('.web-section:first-child .web-secondary')]
+      .find((heading) => /task force on music-related financial disclosures/iu.test(heading.textContent));
+    if (publicationIdentity) publicationIdentity.classList.add('web-publication-identity');
+
     const coverSource = issue.covers?.[language] || issue.cover;
     if (coverSource) {
       const cover = document.createElement('figure');
@@ -110,21 +116,66 @@
     };
     buildContents();
 
-    const showPdf = (pdf, label) => {
+    const showPdf = (pdfPages, pdf, label) => {
       let viewer = content.querySelector('.reader-pdf-cover');
       if (!viewer) {
         viewer = document.createElement('section');
         viewer.className = 'reader-pdf-cover';
-        const frame = document.createElement('iframe');
-        frame.className = 'reader-pdf-cover-frame';
-        viewer.append(frame);
+        viewer.setAttribute('aria-label', `${issue.title} PDF preview`);
         const cover = content.querySelector('.reader-cover');
         if (cover) cover.replaceWith(viewer);
         else content.prepend(viewer);
       }
-      const frame = viewer.querySelector('.reader-pdf-cover-frame');
-      frame.title = `${issue.title} — ${label}`;
-      frame.src = `../${pdf}#view=FitH`;
+      viewer.replaceChildren();
+      if (pdfPages?.length) {
+        let spreadStart = 0;
+        const controls = document.createElement('div');
+        controls.className = 'reader-pdf-controls';
+        const previous = document.createElement('button');
+        previous.type = 'button';
+        previous.textContent = 'Previous pages';
+        const pageLabel = document.createElement('span');
+        const next = document.createElement('button');
+        next.type = 'button';
+        next.textContent = 'Next pages';
+        const open = document.createElement('a');
+        open.href = `../${pdf}`;
+        open.target = '_blank';
+        open.rel = 'noopener noreferrer';
+        open.textContent = 'Open original PDF';
+        controls.append(previous, pageLabel, next, open);
+        const spread = document.createElement('div');
+        spread.className = 'reader-pdf-spread';
+        const renderSpread = () => {
+          spread.replaceChildren();
+          const pages = pdfPages.slice(spreadStart, spreadStart + 2);
+          pages.forEach((page, offset) => {
+            const image = document.createElement('img');
+            image.src = `../${page}`;
+            image.alt = `${issue.title} — ${label}, page ${spreadStart + offset + 1}`;
+            spread.append(image);
+          });
+          previous.disabled = spreadStart === 0;
+          next.disabled = spreadStart + 2 >= pdfPages.length;
+          pageLabel.textContent = `Pages ${spreadStart + 1}–${Math.min(spreadStart + 2, pdfPages.length)} of ${pdfPages.length}`;
+        };
+        previous.addEventListener('click', () => {
+          spreadStart = Math.max(0, spreadStart - 2);
+          renderSpread();
+        });
+        next.addEventListener('click', () => {
+          spreadStart = Math.min(Math.max(0, pdfPages.length - 1), spreadStart + 2);
+          renderSpread();
+        });
+        viewer.append(controls, spread);
+        renderSpread();
+      } else {
+        const frame = document.createElement('iframe');
+        frame.className = 'reader-pdf-cover-frame';
+        frame.title = `${issue.title} — ${label}`;
+        frame.src = `../${pdf}#view=FitH`;
+        viewer.append(frame);
+      }
       viewer.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
         block: 'start'
@@ -149,9 +200,12 @@
         link.href = pdf ? `../${alternative.pdf}` : `?issue=${encodeURIComponent(issue.id)}&lang=${code}`;
         if (pdf) {
           link.addEventListener('click', (event) => {
+            if (window.matchMedia('(max-width: 820px)').matches) return;
             event.preventDefault();
-            showPdf(alternative.pdf, label);
+            showPdf(alternative.pdfPages, alternative.pdf, label);
           });
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
         }
       }
       link.textContent = label;
