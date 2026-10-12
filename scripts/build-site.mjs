@@ -20,33 +20,48 @@ const normalizeText = (value) => value
   .replace(/[^\p{L}\p{N}]+/gu, ' ')
   .trim();
 
-const matches = (source, terms) => terms.filter((term) => source.includes(normalizeText(term))).length;
+const phraseOccurrences = (source, phrase) => {
+  const normalized = normalizeText(phrase);
+  if (!normalized) return 0;
+  // Normalisation puts spaces between Latin words. Matching complete phrases
+  // stops a short word such as "rap" or "pop" from matching inside a name.
+  const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const requiresWordBoundary = /[a-z]/u.test(normalized);
+  const expression = requiresWordBoundary
+    ? new RegExp(`(?:^|\\s)${escaped}(?=\\s|$)`, 'gu')
+    : new RegExp(escaped, 'gu');
+  return [...source.matchAll(expression)].length;
+};
+
+const weightedSignals = (signals) => signals.map(([term, weight = 3]) => ({ term, weight }));
 
 // This deliberately compact, extensible vocabulary starts from the broad and
 // overlapping genres in Wikipedia's "List of music genres and styles". Each
 // issue receives one or two genres; no unbounded editorial tag taxonomy is shown.
 const genreRules = [
-  { name: 'Alternative', terms: ['alternative', 'indie rock', 'shoegaze', 'dream pop', '另類'] },
-  { name: 'Ambient', terms: ['ambient', 'drone', '氛圍', '環境音樂'] },
-  { name: 'Blues', terms: ['blues', '藍調'] },
-  { name: 'Classical', terms: ['classical music', 'orchestra', 'symphony', 'opera', '古典音樂', '交響'] },
-  { name: 'Country', terms: ['country music', 'bluegrass', '鄉村音樂'] },
-  { name: 'Dance', terms: ['dance music', 'disco', 'dance-pop', '舞曲', '迪斯可'] },
-  { name: 'Electronic', terms: ['electronic music', 'electronica', 'synth', '電子音樂', '合成器'] },
-  { name: 'Experimental', terms: ['experimental', 'avant-garde', 'noise music', '實驗音樂', '前衛', '噪音音樂'] },
-  { name: 'Folk', terms: ['folk music', 'singer-songwriter', '民謠', '傳統音樂'] },
-  { name: 'Hip-hop', terms: ['hip-hop', 'hip hop', 'rap', '饒舌', '嘻哈'] },
-  { name: 'House', terms: ['house music', 'deep house', 'tech house', '浩室'] },
-  { name: 'Instrumental', terms: ['instrumental', '器樂', '純音樂'] },
-  { name: 'Jazz', terms: ['jazz', 'bebop', 'swing', '爵士'] },
-  { name: 'Metal', terms: ['metal music', 'heavy metal', 'black metal', '金屬'] },
-  { name: 'Pop', terms: ['pop music', 'k-pop', 'j-pop', 'mandopop', '流行音樂', '華語流行'] },
-  { name: 'Punk', terms: ['punk', 'hardcore', '龐克'] },
-  { name: 'R&B / Soul', terms: ['r&b', 'rnb', 'rhythm and blues', 'soul music', '靈魂樂'] },
-  { name: 'Reggae', terms: ['reggae', 'ska', 'dub', '雷鬼'] },
-  { name: 'Rock', terms: ['rock music', 'rock band', '搖滾'] },
-  { name: 'Techno', terms: ['techno', 'industrial techno', 'techno 音樂'] },
-  { name: 'Traditional / World', terms: ['world music', 'traditional music', 'gamelan', '民俗音樂', '世界音樂'] }
+  { name: 'Alternative', signals: weightedSignals([['alternative', 4], ['indie rock', 5], ['shoegaze', 6], ['dream pop', 6], ['另類', 4]]) },
+  { name: 'Ambient', signals: weightedSignals([['ambient', 5], ['drone', 5], ['氛圍', 4], ['環境音樂', 6]]) },
+  { name: 'Blues', signals: weightedSignals([['blues', 5], ['藍調', 5]]) },
+  { name: 'Classical', signals: weightedSignals([['classical music', 6], ['orchestra', 5], ['symphony', 6], ['opera', 6], ['古典音樂', 6], ['交響', 5]]) },
+  { name: 'Country', signals: weightedSignals([['country music', 6], ['bluegrass', 6], ['鄉村音樂', 6]]) },
+  { name: 'Dance', signals: weightedSignals([['dance music', 6], ['disco', 5], ['dance pop', 6], ['舞曲', 5], ['迪斯可', 5]]) },
+  // An instrument alone is not a genre. "synth" and "合成器" intentionally
+  // do not score here; an issue needs an explicit Electronic genre statement.
+  { name: 'Electronic', signals: weightedSignals([['electronic music', 7], ['electronica', 7], ['electronic composition', 6], ['電子音樂', 7], ['電子樂', 7]]) },
+  { name: 'Experimental', signals: weightedSignals([['experimental music', 7], ['experimental', 4], ['avant garde', 6], ['noise music', 7], ['實驗音樂', 7], ['前衛', 4], ['噪音音樂', 7]]) },
+  { name: 'Folk', signals: weightedSignals([['folk music', 6], ['singer songwriter', 6], ['民謠', 6], ['傳統音樂', 6]]) },
+  { name: 'Hip-hop', signals: weightedSignals([['hip hop', 7], ['rap music', 6], ['饒舌', 7], ['嘻哈', 7]]) },
+  { name: 'House', signals: weightedSignals([['house music', 7], ['deep house', 7], ['tech house', 7], ['浩室', 7]]) },
+  { name: 'Instrumental', signals: weightedSignals([['instrumental music', 7], ['instrumental rock', 6], ['instrumental', 3], ['器樂搖滾', 6], ['器樂', 3], ['純音樂', 7]]) },
+  { name: 'Jazz', signals: weightedSignals([['jazz', 5], ['bebop', 7], ['swing', 5], ['爵士', 5]]) },
+  { name: 'Metal', signals: weightedSignals([['progressive metal', 7], ['metal music', 7], ['heavy metal', 7], ['black metal', 7], ['金屬', 5]]) },
+  { name: 'Pop', signals: weightedSignals([['independent pop', 5], ['pop music', 6], ['k pop', 7], ['j pop', 7], ['mandopop', 7], ['流行音樂', 6], ['華語流行', 7]]) },
+  { name: 'Punk', signals: weightedSignals([['punk', 6], ['hardcore', 6], ['龐克', 6]]) },
+  { name: 'R&B / Soul', signals: weightedSignals([['r b', 7], ['rnb', 7], ['rhythm and blues', 7], ['soul music', 7], ['靈魂樂', 7]]) },
+  { name: 'Reggae', signals: weightedSignals([['reggae', 7], ['ska', 6], ['dub', 5], ['雷鬼', 7]]) },
+  { name: 'Rock', signals: weightedSignals([['post rock', 7], ['math rock', 7], ['instrumental rock', 6], ['taiwanese rock', 6], ['rock music', 6], ['rock band', 5], ['搖滾', 5]]) },
+  { name: 'Techno', signals: weightedSignals([['industrial techno', 7], ['techno music', 7], ['techno 音樂', 7], ['techno', 5]]) },
+  { name: 'Traditional / World', signals: weightedSignals([['world music', 7], ['traditional music', 7], ['gamelan', 7], ['民俗音樂', 7], ['世界音樂', 7]]) }
 ];
 
 const genericSearchTerms = new Set([
@@ -66,9 +81,18 @@ const hiddenSearchTerms = (sourceText) => {
 const issueMetadata = (title, sourceText) => {
   const source = normalizeText(`${title} ${sourceText}`);
   const rankedGenres = genreRules
-    .map((genre) => ({ ...genre, score: matches(source, genre.terms) }))
-    .sort((a, b) => b.score - a.score);
-  const genres = rankedGenres.filter((genre) => genre.score).slice(0, 2).map((genre) => genre.name);
+    .map((genre) => ({
+      ...genre,
+      score: genre.signals.reduce((total, { term, weight }) => total + phraseOccurrences(source, term) * weight, 0)
+    }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const primary = rankedGenres.find((genre) => genre.score > 0);
+  const secondary = rankedGenres.find((genre) => (
+    genre !== primary
+    && genre.score >= 6
+    && genre.score >= primary.score * 0.55
+  ));
+  const genres = [primary, secondary].filter(Boolean).map((genre) => genre.name);
   // A genre remains mandatory even when a PDF makes no explicit genre claim.
   if (!genres.length) genres.push('Experimental');
 
