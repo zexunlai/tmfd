@@ -278,6 +278,9 @@ const readingClass = ({ size, text, role, family = '' }) => {
   // their role; CSS applies the controlled TMFD web scale.
   if (role === 'section-label' || role === 'credit') return 'web-meta';
   if (role === 'work') return 'web-work';
+  // A work title follows its artist heading in the reading flow.  It is an
+  // editorial lead rather than a second artist heading.
+  if (role === 'song') return 'web-intro';
   // PDFs retain their production fonts (for example Noto Serif CJK), whereas
   // the site applies the TMFD web type system. Serif display faces and scale
   // together identify editorial titles; sans faces at the same scale remain
@@ -456,6 +459,41 @@ const markWorkTitles = (items) => items.map((item, index, list) => {
   return item;
 });
 
+// A small number of print layouts place an artist name and a song title in
+// one oversized visual row. Keep their semantic hierarchy explicit online:
+// artist as the card heading, then song title, then year. This is deliberately
+// a narrowly scoped editorial override; it prevents the reader from treating
+// a song title as part of a band's name when the PDF has no structural markup.
+const normaliseArtistSongIdentity = (items, language) => {
+  const identityIndex = items.findIndex((item, index) => (
+    item.text.length <= 160
+    && /(?:no party for cao dong|草東沒有派對)/iu.test(item.text)
+    && items.slice(index + 1, index + 4).some((candidate) => isStandaloneDateOrYear(candidate.text))
+  ));
+  if (identityIndex < 0) return items;
+
+  const identity = items[identityIndex];
+  const artist = language === 'zh'
+    ? '草東沒有派對'
+    : 'No Party For Cao Dong (草東沒有派對)';
+  const song = language === 'zh' ? '大風吹' : 'Simon Says (大風吹)';
+  const result = [];
+  for (const [index, item] of items.entries()) {
+    if (index === identityIndex) {
+      result.push(
+        { ...item, text: artist, href: '', role: 'work' },
+        { ...item, text: song, href: '', role: 'song', top: item.top + Math.max(item.size, 1) }
+      );
+      continue;
+    }
+    // The PDF occasionally emits the song title in a separate nearby object;
+    // it was just represented above, so prevent a duplicate title.
+    if (index < identityIndex + 3 && /(?:simon says|大風吹)/iu.test(item.text)) continue;
+    result.push(item);
+  }
+  return result;
+};
+
 // Print magazines frequently split a spread into two columns. The web edition
 // uses a deliberate single-column reading order: all left-column material first,
 // followed by the right column, while preserving type hierarchy within each.
@@ -493,7 +531,7 @@ const renderMedia = ({ src, alt, shape }) => (
 // to sit next to an image in the original PDF.
 const isImageSource = ({ text, href = '' }) => (
   /(?:commons\.wikimedia\.org|creativecommons\.org)/iu.test(href)
-  || /(?:\bcc\s*by(?:-sa)?\b|archive (?:image|performance image)|licensed (?:publicity )?photograph|official (?:artist|brand|product) image|editorial citation|(?:image|video)\.?$|(?:歷史|官方|演出|現場|授權|宣傳|產品|品牌)?(?:影像|圖片|照片|影片)[。.]?$|圖像來源|圖片來源|影像來源|影片截圖|授權)/iu.test(text.trim())
+  || /(?:\bcc\s*by(?:-sa)?\b|archive (?:image|performance image)|licensed (?:publicity )?photograph|official (?:artist|brand|product) image|official video|editorial (?:citation|use)|(?:image|video)\.?$|(?:歷史|官方|演出|現場|授權|宣傳|產品|品牌)?(?:影像|圖片|照片|影片)[。.]?$|圖像來源|圖片來源|影像來源|影片截圖|官方影片畫面|授權)/iu.test(text.trim())
 );
 const isStandaloneDateOrYear = (text) => (
   /^\s*(?:\d{4}|\d{1,2}\s*(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s*[·,/-]?\s*\d{0,4}|\d{1,2}\s*月\s*\d{0,2}\s*日?)\s*$/iu.test(text)
@@ -519,7 +557,10 @@ const isImageCaption = (item, followingItem) => {
 const renderEditorialSection = (items, media, pageIndex, language) => {
   const isBlockHeading = (item) => ['web-section-title', 'web-secondary', 'web-work'].includes(readingClass(item));
   const rows = (entries, markImageSources = false) => entries.map((item, index) => {
-    const imageSource = markImageSources && isImageCaption(item, entries[index + 1]);
+    // Source lines and their preceding visual captions are retained in the
+    // final Credits & Sources chapter only.  They must never occupy article
+    // space beside an image in the responsive edition.
+    const imageSource = markImageSources && (isImageSource(item) || isImageCaption(item, entries[index + 1]));
     return `<div class="web-row${isBlockHeading(item) ? ' web-row--heading' : ''}${imageSource ? ' web-image-source' : ''}">${renderReadingItem(item, language)}</div>`;
   }).join('\n');
 
@@ -761,8 +802,14 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     // A continuation heading can appear at the top of a second PDF column.
     // Its preceding heading is already present in the web flow, so omit only
     // the repeated continuation label—not its following editorial text.
-    const readingOrder = markWorkTitles(pageReadingFlow(items, pageWidth)
-      .filter((item) => !isContinuationLabel(item)));
+    const pageFlow = pageReadingFlow(items, pageWidth)
+      .filter((item) => !isContinuationLabel(item));
+    // Credits are records, not artist/work cards. Never apply editorial-card
+    // normalisation there or one source record can be split into two rows.
+    const isCreditsPage = pageFlow.some((item) => /(?:credits\s*(?:&|and)\s*sources|影像與資料)/iu.test(item.text));
+    const readingOrder = markWorkTitles(isCreditsPage
+      ? pageFlow
+      : normaliseArtistSongIdentity(pageFlow, language));
     if (pageIndex > 0 && !coverSummary) {
       const firstParagraph = readingOrder.find((item) => (
         ['web-intro', 'web-body'].includes(readingClass(item)) && item.text.length >= 80
