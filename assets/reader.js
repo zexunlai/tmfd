@@ -8,10 +8,6 @@
   const navigation = document.getElementById('reader-navigation');
   const actions = document.getElementById('reader-actions');
   const backToTop = document.getElementById('back-to-top');
-  const pdfDialog = document.getElementById('pdf-dialog');
-  const pdfDialogTitle = document.getElementById('pdf-dialog-title');
-  const pdfDialogFrame = document.getElementById('pdf-dialog-frame');
-  const pdfDialogClose = document.getElementById('pdf-dialog-close');
   const issueId = new URLSearchParams(window.location.search).get('issue');
   const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
 
@@ -22,11 +18,6 @@
   }));
   window.addEventListener('scroll', updateBackToTop, { passive: true });
   updateBackToTop();
-  pdfDialogClose.addEventListener('click', () => pdfDialog.close());
-  pdfDialog.addEventListener('click', (event) => {
-    if (event.target === pdfDialog) pdfDialog.close();
-  });
-  pdfDialog.addEventListener('close', () => pdfDialogFrame.removeAttribute('src'));
 
   try {
     const response = await fetch('../data/issues.json');
@@ -99,10 +90,24 @@
     buildContents();
 
     const showPdf = (pdf, label) => {
-      pdfDialogTitle.textContent = `${issue.title} — ${label}`;
-      pdfDialogFrame.title = `${issue.title} — ${label}`;
-      pdfDialogFrame.src = `../${pdf}#view=FitH`;
-      if (!pdfDialog.open) pdfDialog.showModal();
+      let viewer = content.querySelector('.reader-pdf-cover');
+      if (!viewer) {
+        viewer = document.createElement('section');
+        viewer.className = 'reader-pdf-cover';
+        const frame = document.createElement('iframe');
+        frame.className = 'reader-pdf-cover-frame';
+        viewer.append(frame);
+        const cover = content.querySelector('.reader-cover');
+        if (cover) cover.replaceWith(viewer);
+        else content.prepend(viewer);
+      }
+      const frame = viewer.querySelector('.reader-pdf-cover-frame');
+      frame.title = `${issue.title} — ${label}`;
+      frame.src = `../${pdf}#view=FitH`;
+      viewer.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start'
+      });
     };
 
     const configure = (id, code, label, pdf = false) => {
