@@ -24,7 +24,10 @@
         <h1 id="issue-title">Loading issue…</h1>
         <p id="issue-date"></p>
       </div>
-      <div id="reader-content" aria-live="polite"></div>
+      <div class="reader-layout">
+        <aside id="reader-navigation" class="reader-navigation" aria-label="Issue contents" hidden></aside>
+        <div id="reader-content" aria-live="polite"></div>
+      </div>
       <div id="reader-actions" class="issue-action-matrix" hidden>
         <a id="read-online-en" class="button button-primary" href="#" hidden>Read online</a>
         <a id="read-online-zh" class="button button-primary" href="#" hidden>Read online in Chinese</a>

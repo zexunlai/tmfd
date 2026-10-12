@@ -179,24 +179,28 @@ const attribute = (source, name) => {
 };
 
 const readingClass = ({ size, text, role, family = '' }) => {
-  if (role === 'section-label') return 'web-section-label';
-  if (role === 'credit') return 'web-credit';
+  // The web edition deliberately has only five editorial type scales:
+  // 32 / 20 / 16 / 14 / 10 pt.  PDF point sizes are used only to identify
+  // their role; CSS applies the controlled TMFD web scale.
+  if (role === 'section-label' || role === 'credit') return 'web-meta';
+  if (role === 'work') return 'web-work';
   // PDFs retain their production fonts (for example Noto Serif CJK), whereas
   // the site applies the TMFD web type system. Serif display faces and scale
   // together identify editorial titles; sans faces at the same scale remain
   // reading text.
   const isTitleTypeface = /(?:Georgia|SimSun|NotoSerif)/iu.test(family);
-  if (size >= 48) return 'web-display';
-  if (size >= 34 || (isTitleTypeface && size >= 28)) return 'web-heading';
-  if (isTitleTypeface && size >= 20 && text.length <= 90) return 'web-heading';
-  if (size >= 18) return 'web-lede';
-  if (text.length <= 80 && text === text.toUpperCase() && /[A-Z]/.test(text)) return 'web-eyebrow';
-  return 'web-copy';
+  if (size >= 48) return 'web-section-title';
+  if (size >= 34 || (isTitleTypeface && size >= 28)) return 'web-secondary';
+  if (isTitleTypeface && size >= 20 && text.length <= 90) return 'web-secondary';
+  if (size >= 18) return 'web-intro';
+  if (text.length <= 80 && text === text.toUpperCase() && /[A-Z]/.test(text)) return 'web-meta';
+  return 'web-body';
 };
 
 const readingTag = (className) => {
-  if (className === 'web-display') return 'h1';
-  if (className === 'web-heading') return 'h2';
+  if (className === 'web-section-title') return 'h1';
+  if (className === 'web-secondary') return 'h2';
+  if (className === 'web-work') return 'h3';
   return 'p';
 };
 
@@ -216,7 +220,11 @@ const rowGroups = (items) => {
 const renderReadingItem = (item) => {
   const className = readingClass(item);
   const tag = readingTag(className);
-  return `<${tag} class="${className}">${escapeHtml(item.text)}</${tag}>`;
+  const text = escapeHtml(item.text);
+  const content = item.href
+    ? `<a class="pdf-link" href="${escapeHtml(item.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`
+    : text;
+  return `<${tag} class="${className}">${content}</${tag}>`;
 };
 
 const joinReadingText = (left, right) => (
@@ -230,6 +238,7 @@ const mergeReadingItems = (items) => {
     const canMerge = previous
       && readingClass(previous) === readingClass(item)
       && previous.role === item.role
+      && previous.href === item.href
       && Math.abs(previous.left - item.left) <= 12
       && item.top - previous.top <= Math.max(item.size * 2.5, 65);
     if (canMerge) {
@@ -264,6 +273,21 @@ const isRunningHeaderRemainder = (item, pageHeight) => (
 const isPublicationCredit = (text) => /^(?:ze xun lai|tmfd independent music publication|tmfd vol\.|en revision|zh revision|繁中 revision)/i.test(text.trim());
 const isPublicationFooterLabel = (text) => /^(?:publication|出版資訊)$/iu.test(text.trim());
 const isContinuationLabel = (item) => /(?:[·•]\s*(?:continued|續|繼續))$/iu.test(item.text.trim());
+const isExternalHref = (href) => /^(?:https?:\/\/|mailto:)/iu.test(href);
+const linkFromPdfText = (rawText) => {
+  const href = decodeXml(attribute(rawText, 'href'));
+  return isExternalHref(href) ? href : '';
+};
+const isInternalPdfLink = (rawText) => Boolean(attribute(rawText, 'href')) && !linkFromPdfText(rawText);
+const isDateLine = (text) => /(?:\b(?:19|20)\d{2}\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\d{1,2}\s*月)/iu.test(text);
+const markWorkTitles = (items) => items.map((item, index, list) => {
+  if (readingClass(item) !== 'web-secondary') return item;
+  const next = list[index + 1];
+  if (/\b(?:19|20)\d{2}\b/u.test(item.text) || (next && isDateLine(next.text))) {
+    return { ...item, role: 'work' };
+  }
+  return item;
+});
 
 // Print magazines frequently split a spread into two columns. The web edition
 // uses a deliberate single-column reading order: all left-column material first,
@@ -280,14 +304,41 @@ const pageReadingFlow = (items, pageWidth) => {
       .map(({ top, items: row }) => {
         const sorted = row.sort((a, b) => a.left - b.left);
         const [first] = sorted;
+        const hrefs = [...new Set(sorted.map((item) => item.href).filter(Boolean))];
         return {
           ...first,
           top,
+          href: hrefs.length === 1 ? hrefs[0] : '',
           text: sorted.reduce((joined, item) => joined ? joinReadingText(joined, item.text) : item.text, '')
         };
       });
     return mergeReadingItems(lines);
   });
+};
+
+const renderMedia = ({ src, alt, shape }) => (
+  `<figure class="web-media web-media--${shape}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
+);
+
+// PDF pages do not retain a useful article-level image anchor.  Keep each
+// image with its original PDF page, but distribute the source page's reading
+// flow around it in alternating editorial pairs instead of placing all visual
+// material at the end of the text.
+const renderEditorialSection = (items, media, pageIndex) => {
+  const rows = (entries) => entries.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('\n');
+  if (!media.length) return rows(items);
+
+  const leadEnd = items.findIndex((item) => ['web-intro', 'web-body'].includes(readingClass(item)));
+  const splitAt = leadEnd > 0 ? leadEnd : Math.min(1, items.length);
+  const lead = items.slice(0, splitAt);
+  const remaining = items.slice(splitAt);
+  const chunkSize = Math.max(1, Math.ceil(remaining.length / media.length));
+  const features = media.map((image, index) => {
+    const copy = remaining.slice(index * chunkSize, (index + 1) * chunkSize);
+    const reverse = (pageIndex + index) % 2 === 1;
+    return `<div class="web-feature${reverse ? ' web-feature--reverse' : ''}"><div class="web-feature-copy">${rows(copy)}</div>${renderMedia(image)}</div>`;
+  }).join('\n');
+  return `${rows(lead)}${features}`;
 };
 
 // Converts a text-based PDF into a responsive reading edition. This is deliberately
@@ -312,8 +363,12 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
   for (const [pageIndex, [, pageAttrs, pageBody]] of [...stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)].entries()) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
     const pageWidth = Number(attribute(pageAttrs, 'width')) || 1;
+    const rawTextElements = [...pageBody.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)];
+    // The print contents page is a collection of internal PDF links. Its
+    // browser counterpart is created as a persistent clickable sidebar.
+    if (rawTextElements.filter(([, , rawText]) => isInternalPdfLink(rawText)).length >= 8) continue;
     const items = [];
-    for (const [, textAttrs, rawText] of pageBody.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
+    for (const [, textAttrs, rawText] of rawTextElements) {
       const text = decodeXml(rawText).replace(/\s+/g, ' ').trim();
       const top = Number(attribute(textAttrs, 'top'));
       const font = fontSpecs.get(attribute(textAttrs, 'font')) || { size: 14, family: '' };
@@ -323,7 +378,8 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
         top,
         left: Number(attribute(textAttrs, 'left')) || 0,
         size: font.size,
-        family: font.family
+        family: font.family,
+        href: linkFromPdfText(rawText)
       };
       if (isRunningHeader(item, pageHeight)) {
         const key = normaliseRunningLabel(item.text);
@@ -346,13 +402,10 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     // A continuation heading can appear at the top of a second PDF column.
     // Its preceding heading is already present in the web flow, so omit only
     // the repeated continuation label—not its following editorial text.
-    const readingOrder = pageReadingFlow(items, pageWidth)
-      .filter((item) => !isContinuationLabel(item));
-    const content = readingOrder.map((item) => `<div class="web-row">${renderReadingItem(item)}</div>`).join('\n');
-    const media = (mediaByPage.get(pageIndex + 1) || []).map(({ src, alt, shape }) => (
-      `<figure class="web-media web-media--${shape}"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"></figure>`
-    )).join('');
-    sections.push(`<section class="web-section">${content}${media}</section>`);
+    const readingOrder = markWorkTitles(pageReadingFlow(items, pageWidth)
+      .filter((item) => !isContinuationLabel(item)));
+    const media = mediaByPage.get(pageIndex + 1) || [];
+    sections.push(`<section class="web-section">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
   }
   return {
     edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,

@@ -5,6 +5,7 @@
   const title = document.getElementById('issue-title');
   const date = document.getElementById('issue-date');
   const content = document.getElementById('reader-content');
+  const navigation = document.getElementById('reader-navigation');
   const actions = document.getElementById('reader-actions');
   const issueId = new URLSearchParams(window.location.search).get('issue');
   const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
@@ -50,6 +51,38 @@
       const firstSection = content.querySelector('.web-section');
       if (firstSection) firstSection.after(cover);
     }
+
+    const buildContents = () => {
+      const labels = [...content.querySelectorAll('.web-meta')]
+        .filter((label) => label.closest('.web-row')?.querySelector('.web-meta'))
+        .filter((label) => /^\d{1,2}\s+/.test(label.textContent.trim()));
+      const unique = new Set();
+      const entries = labels.flatMap((label) => {
+        const section = label.closest('.web-section');
+        const text = label.textContent.trim().replace(/^\d{1,2}\s+/, '');
+        const key = text.toLocaleLowerCase();
+        if (!section || !text || unique.has(key)) return [];
+        unique.add(key);
+        section.id = `section-${unique.size}`;
+        return [{ section, text }];
+      });
+      if (!entries.length) return;
+      navigation.replaceChildren();
+      const title = document.createElement('p');
+      title.className = 'reader-navigation-title';
+      title.textContent = 'Contents';
+      const list = document.createElement('div');
+      list.className = 'reader-navigation-list';
+      entries.forEach(({ section, text }) => {
+        const link = document.createElement('a');
+        link.href = `#${section.id}`;
+        link.textContent = text;
+        list.append(link);
+      });
+      navigation.append(title, list);
+      navigation.hidden = false;
+    };
+    buildContents();
 
     const showPdf = (pdf, label) => {
       let viewer = content.querySelector('#embedded-pdf');
@@ -104,14 +137,14 @@
 
     // The publication identity always has a full line. The compact reading
     // choices belong beside the article's own cover-line and title information.
-    const firstHeadingRow = content.querySelector('.web-heading')?.closest('.web-row');
+    const firstHeadingRow = content.querySelector('.web-secondary')?.closest('.web-row');
     if (firstHeadingRow) {
       const section = firstHeadingRow.closest('.web-section');
       const identity = firstHeadingRow.closest('.web-stack') || firstHeadingRow;
       const articleRows = [...section.children].filter((child) => child !== identity);
       if (articleRows.length) {
         identity.classList.add('edition-identity');
-        const displayIndex = articleRows.findIndex((row) => row.querySelector('.web-display'));
+        const displayIndex = articleRows.findIndex((row) => row.querySelector('.web-section-title'));
         const titleRows = displayIndex >= 0 ? articleRows.slice(0, displayIndex + 1) : [];
         const informationRows = displayIndex >= 0 ? articleRows.slice(displayIndex + 1) : articleRows;
         identity.after(...titleRows);
