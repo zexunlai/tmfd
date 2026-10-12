@@ -31,10 +31,21 @@
       <div id="reader-actions" class="issue-action-matrix" hidden>
         <a id="read-online-en" class="button button-primary" href="#" hidden>Read online</a>
         <a id="read-online-zh" class="button button-primary" href="#" hidden>Read online in Chinese</a>
-        <a id="open-pdf-en" class="button button-secondary" href="#" hidden target="_blank" rel="noopener">Open PDF</a>
-        <a id="open-pdf-zh" class="button button-secondary" href="#" hidden target="_blank" rel="noopener">Open PDF (Chinese)</a>
+        <a id="open-pdf-en" class="button button-secondary" href="#" hidden>Open PDF</a>
+        <a id="open-pdf-zh" class="button button-secondary" href="#" hidden>Open PDF (Chinese)</a>
       </div>
     </main>
+
+    <button id="back-to-top" class="back-to-top" type="button" hidden aria-label="Back to the top of this issue">
+      <span aria-hidden="true">↑</span><span>Top</span>
+    </button>
+    <dialog id="pdf-dialog" class="pdf-dialog" aria-labelledby="pdf-dialog-title">
+      <div class="pdf-dialog-sheet">
+        <p id="pdf-dialog-title" class="sr-only">Issue PDF</p>
+        <button id="pdf-dialog-close" class="pdf-dialog-close" type="button" aria-label="Close PDF">×</button>
+        <iframe id="pdf-dialog-frame" class="pdf-dialog-frame" title="Issue PDF"></iframe>
+      </div>
+    </dialog>
 
     <footer class="site-footer">
       <span class="footer-name">Task Force on Music-related Financial Disclosures</span>

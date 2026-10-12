@@ -7,8 +7,26 @@
   const content = document.getElementById('reader-content');
   const navigation = document.getElementById('reader-navigation');
   const actions = document.getElementById('reader-actions');
+  const backToTop = document.getElementById('back-to-top');
+  const pdfDialog = document.getElementById('pdf-dialog');
+  const pdfDialogTitle = document.getElementById('pdf-dialog-title');
+  const pdfDialogFrame = document.getElementById('pdf-dialog-frame');
+  const pdfDialogClose = document.getElementById('pdf-dialog-close');
   const issueId = new URLSearchParams(window.location.search).get('issue');
   const requestedLanguage = new URLSearchParams(window.location.search).get('lang');
+
+  const updateBackToTop = () => { backToTop.hidden = window.scrollY < 360; };
+  backToTop.addEventListener('click', () => window.scrollTo({
+    top: 0,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  }));
+  window.addEventListener('scroll', updateBackToTop, { passive: true });
+  updateBackToTop();
+  pdfDialogClose.addEventListener('click', () => pdfDialog.close());
+  pdfDialog.addEventListener('click', (event) => {
+    if (event.target === pdfDialog) pdfDialog.close();
+  });
+  pdfDialog.addEventListener('close', () => pdfDialogFrame.removeAttribute('src'));
 
   try {
     const response = await fetch('../data/issues.json');
@@ -81,22 +99,10 @@
     buildContents();
 
     const showPdf = (pdf, label) => {
-      let viewer = content.querySelector('#embedded-pdf');
-      if (!viewer) {
-        viewer = document.createElement('section');
-        viewer.id = 'embedded-pdf';
-        viewer.className = 'embedded-pdf';
-        const heading = document.createElement('p');
-        heading.className = 'embedded-pdf-label';
-        const frame = document.createElement('iframe');
-        frame.className = 'embedded-pdf-frame';
-        frame.title = `${issue.title} — PDF`;
-        viewer.append(heading, frame);
-        content.append(viewer);
-      }
-      viewer.querySelector('.embedded-pdf-label').textContent = label;
-      viewer.querySelector('.embedded-pdf-frame').src = `../${pdf}#view=FitH`;
-      viewer.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      pdfDialogTitle.textContent = `${issue.title} — ${label}`;
+      pdfDialogFrame.title = `${issue.title} — ${label}`;
+      pdfDialogFrame.src = `../${pdf}#view=FitH`;
+      if (!pdfDialog.open) pdfDialog.showModal();
     };
 
     const configure = (id, code, label, pdf = false) => {
