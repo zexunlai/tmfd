@@ -12,6 +12,8 @@ Official website for **TMFD — Task Force on Music-related Financial Disclosure
 
 GitHub Actions rebuilds the issue index and deploys the refreshed site automatically. The newest issue becomes the homepage feature and every issue appears in the archive.
 
+> First-time setup only: in the repository's **Settings → Pages**, set **Source** to **GitHub Actions**. After that, every push to `main` builds the PDFs, cover crops, article pages, and issue index before publishing; no generated files need to be committed manually.
+
 The filename date controls ordering and display. For example:
 
 ```text
