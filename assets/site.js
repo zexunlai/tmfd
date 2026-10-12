@@ -10,7 +10,8 @@
     if (!current) return;
 
     document.getElementById('current-title').textContent = current.title;
-    document.getElementById('current-date').textContent = current.dateLabel;
+    const editionLabel = current.editionLabel ? ` · ${current.editionLabel}` : '';
+    document.getElementById('current-date').textContent = `${current.dateLabel.toUpperCase()}${editionLabel}`;
     document.getElementById('current-description').textContent = current.excerpt || current.genres?.join(', ') || '';
     const genres = document.getElementById('current-genres');
     genres.replaceChildren(...(current.genres || []).map((label) => {

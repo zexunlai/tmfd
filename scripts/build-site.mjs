@@ -78,7 +78,14 @@ const hiddenSearchTerms = (sourceText) => {
   }))].slice(0, 220);
 };
 
-const issueMetadata = (title, sourceText) => {
+const editionLabelFromText = (sourceText) => {
+  const match = sourceText.match(/\b(?:english|traditional chinese|chinese)?\s*(vol\.?\s*\d{1,3})\s+edition\b/iu);
+  if (!match) return '';
+  const volume = match[1].replace(/^vol\.?/iu, 'Vol.').replace(/\s+/g, ' ').trim();
+  return `${volume} Edition`;
+};
+
+const issueMetadata = (title, sourceText, coverSummary = '') => {
   const source = normalizeText(`${title} ${sourceText}`);
   const rankedGenres = genreRules
     .map((genre) => ({
@@ -104,7 +111,12 @@ const issueMetadata = (title, sourceText) => {
     .filter((sentence) => sentence.length >= 35 && sentence.length <= 230)
     .find((sentence) => !/(tmfd|task force|cover.line|between the parts|type proof|not approved|type specimen)/i.test(sentence))
     || `A TMFD issue about ${genres.join(' and ').toLowerCase()}.`;
-  return { genres, excerpt, searchTerms: hiddenSearchTerms(`${title} ${sourceText}`) };
+  return {
+    genres,
+    editionLabel: editionLabelFromText(sourceText),
+    excerpt: coverSummary || excerpt,
+    searchTerms: hiddenSearchTerms(`${title} ${sourceText}`)
+  };
 };
 
 const formatDate = (date) => new Intl.DateTimeFormat('en', {
@@ -433,6 +445,7 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
   const textParts = [];
   const contents = [];
   const emittedSectionLabels = new Set();
+  let coverSummary = '';
   for (const [pageIndex, [, pageAttrs, pageBody]] of [...stdout.matchAll(/<page\b([^>]*)>([\s\S]*?)<\/page>/g)].entries()) {
     const pageHeight = Number(attribute(pageAttrs, 'height')) || 1;
     const pageWidth = Number(attribute(pageAttrs, 'width')) || 1;
@@ -509,12 +522,16 @@ const buildReadingEdition = async (sourcePdf, language, mediaByPage = new Map())
     // the repeated continuation label—not its following editorial text.
     const readingOrder = markWorkTitles(pageReadingFlow(items, pageWidth)
       .filter((item) => !isContinuationLabel(item)));
+    if (pageIndex === 0 && !coverSummary) {
+      coverSummary = readingOrder.find((item) => readingClass(item) === 'web-body')?.text || '';
+    }
     const media = mediaByPage.get(pageIndex + 1) || [];
     sections.push(`<section class="web-section" data-pdf-page="${pageIndex + 1}">${renderEditorialSection(readingOrder, media, pageIndex)}</section>`);
   }
   return {
     edition: sections.length ? `<article class="web-edition">${sections.join('\n')}</article>\n` : null,
     text: textParts.join(' '),
+    coverSummary,
     contents: contents.map(({ number, title, page }) => ({ number, title, page })).filter((entry) => entry.page)
   };
 };
@@ -552,6 +569,7 @@ for (const group of issueGroups.values()) {
   const languages = {};
   const covers = {};
   let sourceText = titleFromSlug(slug);
+  let coverSummary = '';
 
   for (const language of ['en', 'zh']) {
     const files = group.files[language];
@@ -570,6 +588,7 @@ for (const group of issueGroups.values()) {
       try {
         const conversion = await buildReadingEdition(sourcePdf, language, visuals.mediaByPage);
         sourceText += ` ${conversion.text}`;
+        if (conversion.coverSummary && (!coverSummary || language === 'en')) coverSummary = conversion.coverSummary;
         contents = conversion.contents;
         if (conversion.edition) {
           const folder = path.join(destination, 'reader-content');
@@ -589,7 +608,7 @@ for (const group of issueGroups.values()) {
     };
   }
 
-  const metadata = issueMetadata(titleFromSlug(slug), sourceText);
+  const metadata = issueMetadata(titleFromSlug(slug), sourceText, coverSummary);
 
   issues.push({
     id,
