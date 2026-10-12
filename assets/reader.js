@@ -76,15 +76,36 @@
       const title = document.createElement('p');
       title.className = 'reader-navigation-title';
       title.textContent = 'Contents';
-      const list = document.createElement('div');
-      list.className = 'reader-navigation-list';
-      entries.forEach(({ section, text }) => {
+      const makeLink = ({ section, text }) => {
         const link = document.createElement('a');
         link.href = `#${section.id}`;
         link.textContent = text;
-        list.append(link);
+        return link;
+      };
+
+      const list = document.createElement('div');
+      list.className = 'reader-navigation-list';
+      entries.forEach((entry) => {
+        list.append(makeLink(entry));
       });
-      navigation.append(title, list);
+
+      // Desktop keeps the full sidebar. On smaller screens this becomes a
+      // compact, independently expandable menu in the upper-right corner.
+      const mobileMenu = document.createElement('details');
+      mobileMenu.className = 'reader-contents-menu';
+      const summary = document.createElement('summary');
+      summary.textContent = 'Contents';
+      const mobileList = document.createElement('div');
+      mobileList.className = 'reader-contents-menu-list';
+      entries.forEach((entry) => {
+        mobileList.append(makeLink(entry));
+      });
+      mobileList.addEventListener('click', () => {
+        mobileMenu.open = false;
+      });
+      mobileMenu.append(summary, mobileList);
+
+      navigation.append(title, list, mobileMenu);
       navigation.hidden = false;
     };
     buildContents();
