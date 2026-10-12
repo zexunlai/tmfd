@@ -163,28 +163,19 @@
     configure('open-pdf-zh', 'zh', 'Open PDF (Chinese)', true);
     actions.hidden = false;
 
-    // The publication identity always has a full line. The compact reading
-    // choices belong beside the article's own cover-line and title information.
-    const firstHeadingRow = content.querySelector('.web-secondary')?.closest('.web-row');
-    if (firstHeadingRow) {
-      const section = firstHeadingRow.closest('.web-section');
-      const identity = firstHeadingRow.closest('.web-stack') || firstHeadingRow;
-      const articleRows = [...section.children].filter((child) => child !== identity);
-      if (articleRows.length) {
-        identity.classList.add('edition-identity');
-        const displayIndex = articleRows.findIndex((row) => row.querySelector('.web-section-title'));
-        const titleRows = displayIndex >= 0 ? articleRows.slice(0, displayIndex + 1) : [];
-        const informationRows = displayIndex >= 0 ? articleRows.slice(displayIndex + 1) : articleRows;
-        identity.after(...titleRows);
-        if (!informationRows.length) return;
-        const intro = document.createElement('div');
-        intro.className = 'article-intro';
-        const information = document.createElement('div');
-        information.className = 'article-intro-information';
-        information.append(...informationRows);
-        (titleRows.at(-1) || identity).after(intro);
-        intro.append(information, actions);
-      }
+    // Keep the action choices beside the leading issue information without
+    // rearranging ancestors from the generated PDF fragment.  The previous
+    // implementation accidentally attempted to insert a feature inside one
+    // of its own descendants, which aborts the reader in browsers.
+    const leadCopy = content.querySelector('.web-section .web-feature-copy');
+    if (leadCopy) {
+      const intro = document.createElement('div');
+      intro.className = 'article-intro';
+      const information = document.createElement('div');
+      information.className = 'article-intro-information';
+      information.append(...leadCopy.children);
+      intro.append(information, actions);
+      leadCopy.append(intro);
     }
     content.classList.add('is-ready');
     requestAnimationFrame(() => actions.classList.add('is-ready'));
