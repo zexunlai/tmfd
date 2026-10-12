@@ -33,14 +33,20 @@ def compress_pdf(source: Path, destination: Path) -> int:
         for page in document:
             for image_info in page.get_images(full=True):
                 xref = image_info[0]
+                soft_mask_xref = image_info[1]
                 if xref in processed:
                     continue
                 processed.add(xref)
 
                 pixmap = fitz.Pixmap(document, xref)
+                # Transparent assets include the TMFD wordmark. Re-encoding one
+                # as JPEG removes its alpha channel and turns the transparent
+                # area black. Keep those source assets untouched.
+                if pixmap.alpha or soft_mask_xref:
+                    continue
                 if max(pixmap.width, pixmap.height) < 1500:
                     continue
-                if pixmap.alpha or pixmap.colorspace is None or pixmap.colorspace.n != 3:
+                if pixmap.colorspace is None or pixmap.colorspace.n != 3:
                     pixmap = fitz.Pixmap(fitz.csRGB, pixmap)
 
                 image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
