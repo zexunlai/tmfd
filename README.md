@@ -7,7 +7,7 @@ Official website for **TMFD — Task Force on Music-related Financial Disclosure
 1. Add each PDF to its language folder, using exactly the same date and title stem when both editions exist. Add the language at the end of each filename:
    - `issues/en/YYYY-MM-DD-short-title-en.pdf` — English edition.
    - `issues/zh/YYYY-MM-DD-short-title-zh.pdf` — Traditional Chinese edition.
-2. Double-click **Prepare TMFD PDFs.command** in this folder. It automatically prepares only oversized PDFs for GitHub and stores a safe copy of each original in `Documents/TMFD Original PDFs`.
+2. PDFs placed in either issue folder are automatically prepared when they are 90 MB or larger. The automation stores a safe copy of each original in `Documents/TMFD Original PDFs`. **Prepare TMFD PDFs.command** remains available as a manual fallback.
 3. In GitHub Desktop, commit and push them to `main`.
 
 GitHub Actions rebuilds the issue index and deploys the refreshed site automatically. The newest issue becomes the homepage feature and every issue appears in the archive.
