@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(root, '_site');
-const publishable = ['about', 'index.html', 'assets', 'archive', 'issues', 'legal', 'read'];
+// Google Search Console fetches this verification file directly. It is copied
+// to the deployed root but intentionally is not linked from any public page.
+const publishable = ['about', 'index.html', 'assets', 'archive', 'issues', 'legal', 'read', 'google58c4fa17f0b7e987.html'];
 const execFileAsync = promisify(execFile);
 
 const titleFromSlug = (slug) => slug
