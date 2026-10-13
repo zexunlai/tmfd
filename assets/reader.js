@@ -32,6 +32,18 @@
     document.documentElement.lang = language === 'zh' ? 'zh-Hant' : 'en';
     content.dataset.language = language;
 
+    // The empty reader route is intentionally noindex. Once a real published
+    // issue and language have been resolved, advertise its stable canonical
+    // URL to search engines.
+    const canonical = document.getElementById('page-canonical');
+    const robots = document.getElementById('page-robots');
+    if (canonical) {
+      const url = new URL('https://zexunlai.github.io/tmfd/read/');
+      url.search = new URLSearchParams({ issue: issue.id, lang: language }).toString();
+      canonical.href = url.href;
+    }
+    if (robots) robots.content = 'index,follow';
+
     title.textContent = issue.title;
     date.textContent = `${issue.dateLabel} · ${language === 'zh' ? '中文' : 'English'}`;
     if (edition.web) {

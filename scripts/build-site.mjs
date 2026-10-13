@@ -8,8 +8,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const destination = path.join(root, '_site');
 // Google Search Console fetches this verification file directly. It is copied
 // to the deployed root but intentionally is not linked from any public page.
-const publishable = ['about', 'index.html', 'assets', 'archive', 'issues', 'legal', 'read', 'google58c4fa17f0b7e987.html'];
+const publishable = ['about', 'index.html', 'assets', 'archive', 'issues', 'legal', 'read', 'robots.txt', 'google58c4fa17f0b7e987.html'];
 const execFileAsync = promisify(execFile);
+const publicOrigin = 'https://zexunlai.github.io/tmfd';
 
 const titleFromSlug = (slug) => slug
   .replace(/[-_]+/g, ' ')
@@ -148,6 +149,13 @@ const escapeHtml = (value) => value
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
+
+const escapeXml = (value) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&apos;');
 
 // Every visual is derived from the issue PDF. The first page provides the
 // horizontal cover crop; embedded raster artwork is placed after its source
@@ -919,5 +927,37 @@ issues.sort((a, b) => b.date.localeCompare(a.date));
 
 await mkdir(path.join(destination, 'data'), { recursive: true });
 await writeFile(path.join(destination, 'data', 'issues.json'), `${JSON.stringify(issues, null, 2)}\n`);
+
+// The sitemap is generated from the same published issue index used by the
+// homepage and archive. Adding a language PDF/HTML issue therefore adds its
+// actual reader URL on the next normal GitHub Pages build—no manual list or
+// scheduled task is required.
+const sitemapUrls = new Map();
+const addSitemapUrl = (url, lastmod = '') => {
+  if (!sitemapUrls.has(url)) sitemapUrls.set(url, lastmod);
+};
+for (const route of ['/', '/archive/', '/about/', '/legal/']) {
+  addSitemapUrl(`${publicOrigin}${route}`);
+}
+for (const issue of issues) {
+  for (const [language, edition] of Object.entries(issue.languages)) {
+    if (!edition.web && !edition.html) continue;
+    const query = new URLSearchParams({ issue: issue.id, lang: language });
+    addSitemapUrl(`${publicOrigin}/read/?${query.toString()}`, issue.date);
+  }
+}
+const sitemap = [
+  '<?xml version="1.0" encoding="UTF-8"?>',
+  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+  ...[...sitemapUrls].map(([url, lastmod]) => [
+    '  <url>',
+    `    <loc>${escapeXml(url)}</loc>`,
+    ...(lastmod ? [`    <lastmod>${escapeXml(lastmod)}</lastmod>`] : []),
+    '  </url>'
+  ].join('\n')),
+  '</urlset>',
+  ''
+].join('\n');
+await writeFile(path.join(destination, 'sitemap.xml'), sitemap);
 console.log(`Built TMFD site with ${issues.length} published issue(s).`);
 
